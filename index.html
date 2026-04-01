@@ -93,7 +93,7 @@
   let lastScan = "";
   let lastTime = 0;
   async function sendAttendance(name) {
-    if (name === lastScan && Date.now() - lastTime < 30000) return;
+    if (name === lastScan && Date.now() - lastTime < 5000) return;
     lastScan = name; lastTime = Date.now();
     await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ name: name }) });
     M.toast({html: 'บันทึกสำเร็จ: ' + name, classes: 'green rounded'});
