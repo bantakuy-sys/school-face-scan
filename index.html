@@ -2,77 +2,77 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>ระบบเช็คชื่อสแกนใบหน้า - โรงเรียนบ้านตะกุย</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เช็คชื่อสแกนใบหน้า - บ้านตะกุย</title>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
   <style>
-    body { display: flex; flex-direction: column; align-items: center; background: #f0f4f8; font-family: 'Kanit', sans-serif; }
-    #video-container { position: relative; margin-top: 20px; border: 8px solid white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); overflow: hidden; line-height: 0; }
+    body { display: flex; flex-direction: column; align-items: center; background: #f0f2f5; font-family: sans-serif; }
+    #video-container { position: relative; margin-top: 20px; border: 6px solid #fff; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); overflow: hidden; line-height: 0; }
     canvas { position: absolute; top: 0; left: 0; }
-    .status-card { width: 90%; max-width: 600px; margin-top: 20px; padding: 20px; border-radius: 15px; text-align: center; }
+    .info { width: 90%; max-width: 500px; margin-top: 20px; text-align: center; padding: 15px; border-radius: 10px; }
   </style>
 </head>
 <body>
 
-  <div class="status-card card white">
-    <h4 class="blue-text text-darken-2">ระบบสแกนใบหน้าเข้าเรียน</h4>
-    <p id="status" class="grey-text text-darken-1">กำลังเริ่มระบบ...</p>
+  <div class="info card white">
+    <h5 class="blue-text">ระบบสแกนใบหน้า (เช็คชื่อ)</h5>
+    <p id="status">กำลังเตรียมการ...</p>
   </div>
 
   <div id="video-container">
-    <video id="video" width="640" height="480" autoplay muted playsinline></video>
+    <video id="video" width="600" height="450" autoplay muted playsinline></video>
   </div>
-
-  <div style="margin-top:20px;">
-    <a href="register.html" class="btn-flat grey-text">ไปหน้าลงทะเบียนใหม่</a>
-  </div>
+  
+  <p><a href="register.html">ไปหน้าลงทะเบียนนักเรียน</a></p>
 
 <script>
-  const GAS_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AWDtjMXAHcdI9pgI5YOKMh-S6VR8c78h1dXkMhy9IFklDfZsThgThCkPO9rwjl9w4Z2wFJ1GcJjqVn4eLBLZ28EN-cpg-qGM32CpBklFOhS9f4jS3y8fDDCkQw8Fkh-xKc6uXjkR6TDZfdOt1dZESWkAuxNcLBxH0SCa5IGRwOp52wIVV_lVL4jek7hMMtcZ6HXEhw5QIwexCc3edm61uEG6tVjZCg4JcTF1waQpMsyxOMLX4y6frsFGKbgZRcOgvsBniusSyeLY682tNjRDn3qaHT7IPGHo9xpgMLd5m-yj&lib=MqOGK7PdD9aHuvUM9-Y2Z-5mN7hMr5434"; 
-  const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
-  
+  const GAS_URL = "วาง_URL_ของ_GAS_ที่นี่"; // *** สำคัญมาก ***
   const video = document.getElementById('video');
-  const statusTxt = document.getElementById('status');
+  const status = document.getElementById('status');
   let faceMatcher;
 
   async function init() {
+    if (typeof faceapi === 'undefined') {
+      status.innerText = "กำลังรอ Library...";
+      setTimeout(init, 1000);
+      return;
+    }
+
     try {
-      statusTxt.innerText = "กำลังโหลดสมอง AI...";
+      status.innerText = "กำลังโหลดสมอง AI...";
+      const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
       await Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
       ]);
 
-      statusTxt.innerText = "กำลังดึงข้อมูลนักเรียน...";
-      const response = await fetch(GAS_URL);
-      const students = await response.json();
+      status.innerText = "กำลังดึงข้อมูลจาก Sheets...";
+      const res = await fetch(GAS_URL);
+      const students = await res.json();
 
       if (students.length === 0) {
-        statusTxt.innerHTML = "<b class='red-text'>ยังไม่มีใครลงทะเบียนใบหน้าในระบบ</b>";
+        status.innerHTML = "<span class='red-text'>ยังไม่มีข้อมูลนักเรียนในระบบ</span>";
         return;
       }
 
       const labeledDescriptors = students.map(s => 
         new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(s.descriptor)])
       );
+      faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
       
-      faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.55); // ความแม่นยำ 55%
-      statusTxt.innerText = "ระบบพร้อมสแกน! กรุณามองที่กล้อง";
-      
+      status.innerText = "ระบบพร้อม! กรุณามองกล้อง";
       startVideo();
-    } catch (err) {
-      statusTxt.innerHTML = "<b class='red-text'>ผิดพลาด: " + err.message + "</b>";
-    }
+    } catch (e) { status.innerText = "Error: " + e.message; }
   }
 
   async function startVideo() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
     video.srcObject = stream;
     
-    const container = document.getElementById('video-container');
     const canvas = faceapi.createCanvasFromMedia(video);
-    container.append(canvas);
+    document.getElementById('video-container').append(canvas);
     const displaySize = { width: video.width, height: video.height };
     faceapi.matchDimensions(canvas, displaySize);
 
@@ -85,29 +85,21 @@
         const result = faceMatcher.findBestMatch(d.descriptor);
         const color = result.label === 'unknown' ? 'red' : 'green';
         new faceapi.draw.DrawBox(d.detection.box, { label: result.toString(), color: color }).draw(canvas);
-        
-        if (result.label !== 'unknown') {
-          sendToSheet(result.label);
-        }
+        if (result.label !== 'unknown') sendAttendance(result.label);
       });
     }, 1000);
   }
 
-  let lastUser = "";
+  let lastScan = "";
   let lastTime = 0;
-
-  async function sendToSheet(name) {
-    let now = Date.now();
-    if (name !== lastUser || (now - lastTime) > 60000) { // ป้องกันสแกนซ้ำภายใน 1 นาที
-      lastUser = name;
-      lastTime = now;
-      const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ name: name }) });
-      const msg = await res.text();
-      M.toast({html: msg, classes: 'rounded green'});
-    }
+  async function sendAttendance(name) {
+    if (name === lastScan && Date.now() - lastTime < 30000) return;
+    lastScan = name; lastTime = Date.now();
+    await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ name: name }) });
+    M.toast({html: 'บันทึกสำเร็จ: ' + name, classes: 'green rounded'});
   }
 
-  init();
+  window.onload = init;
 </script>
 </body>
 </html>
