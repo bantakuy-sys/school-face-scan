@@ -9,7 +9,8 @@
   <style>
     body { display: flex; flex-direction: column; align-items: center; background: #f0f2f5; font-family: sans-serif; }
     #video-container { position: relative; margin-top: 20px; border: 6px solid #fff; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); overflow: hidden; line-height: 0; }
-    canvas { position: absolute; top: 0; left: 0; }
+    canvas { position: absolute; top: 0; left: 0; z-index: 10; }
+    video { display: block; }
     .info { width: 90%; max-width: 500px; margin-top: 20px; text-align: center; padding: 15px; border-radius: 10px; }
   </style>
 </head>
@@ -24,10 +25,11 @@
     <video id="video" width="600" height="450" autoplay muted playsinline></video>
   </div>
   
-  <p><a href="register.html">ไปหน้าลงทะเบียนนักเรียน</a></p>
+  <p style="margin-top:20px;"><a href="register.html" class="btn blue waves-effect">ไปหน้าลงทะเบียนนักเรียน</a></p>
 
 <script>
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbxtq3lpW_Qk7rGDRpu99SDyZM_lYasBYa-Q8kTdu7MRmpGvPoSlRRFp4EQ3vEopMRjj1A/exec"; // *** สำคัญมาก ***
+  // ใช้ URL เดิมที่คุณครูให้มา
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbxtq3lpW_Qk7rGDRpu99SDyZM_lYasBYa-Q8kTdu7MRmpGvPoSlRRFp4EQ3vEopMRjj1A/exec";
   const video = document.getElementById('video');
   const status = document.getElementById('status');
   let faceMatcher;
@@ -52,54 +54,107 @@
       const res = await fetch(GAS_URL);
       const students = await res.json();
 
-      if (students.length === 0) {
+      if (!students || students.length === 0) {
         status.innerHTML = "<span class='red-text'>ยังไม่มีข้อมูลนักเรียนในระบบ</span>";
         return;
       }
 
-      const labeledDescriptors = students.map(s => 
-        new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(s.descriptor)])
-      );
-      faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.1);
+      // แปลงข้อมูล Descriptor จากระบบ
+      const labeledDescriptors = students.map(s => {
+        try {
+          return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(s.descriptor)]);
+        } catch(e) {
+          console.error("ข้อมูลนักเรียนผิดพลาด:", s.name);
+          return null;
+        }
+      }).filter(item => item !== null);
+
+      if (labeledDescriptors.length === 0) {
+        status.innerHTML = "<span class='red-text'>ข้อมูลใน Sheet ไม่ถูกต้อง</span>";
+        return;
+      }
+
+      faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
       
-      status.innerText = "ระบบพร้อม! กรุณามองกล้อง";
+      status.innerText = "กำลังเปิดกล้อง...";
       startVideo();
-    } catch (e) { status.innerText = "Error: " + e.message; }
+    } catch (e) { 
+      status.innerText = "Error: " + e.message;
+      console.error(e);
+    }
   }
 
   async function startVideo() {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-    video.srcObject = stream;
-    
-    const canvas = faceapi.createCanvasFromMedia(video);
-    document.getElementById('video-container').append(canvas);
-    const displaySize = { width: video.width, height: video.height };
-    faceapi.matchDimensions(canvas, displaySize);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
 
-    setInterval(async () => {
-      const detections = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
-      const resized = faceapi.resizeResults(detections, displaySize);
-      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-      
-      resized.forEach(d => {
-        const result = faceMatcher.findBestMatch(d.descriptor);
-        const color = result.label === 'unknown' ? 'red' : 'green';
-        new faceapi.draw.DrawBox(d.detection.box, { label: result.toString(), color: color }).draw(canvas);
-        if (result.label !== 'unknown') sendAttendance(result.label);
-      });
-    }, 1000);
+      // แก้ไข Error: media has not finished loading
+      video.onloadedmetadata = async () => {
+        try {
+          await video.play();
+          status.innerText = "ระบบพร้อม! กรุณามองกล้อง";
+          
+          const canvas = faceapi.createCanvasFromMedia(video);
+          document.getElementById('video-container').append(canvas);
+          const displaySize = { width: video.width, height: video.height };
+          faceapi.matchDimensions(canvas, displaySize);
+
+          setInterval(async () => {
+            const detections = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
+            const resized = faceapi.resizeResults(detections, displaySize);
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            
+            resized.forEach(d => {
+              const result = faceMatcher.findBestMatch(d.descriptor);
+              const color = result.label === 'unknown' ? '#f44336' : '#4caf50'; // แดง หรือ เขียว
+              
+              // วาดกล่อง
+              new faceapi.draw.DrawBox(d.detection.box, { 
+                label: result.toString(), 
+                boxColor: color 
+              }).draw(canvas);
+
+              // ถ้าสแกนติดชื่อคน ให้ส่งบันทึกเข้า Sheet
+              if (result.label !== 'unknown') {
+                sendAttendance(result.label);
+              }
+            });
+          }, 1000);
+        } catch (err) {
+          status.innerText = "ไม่สามารถเล่นวิดีโอได้: " + err.message;
+        }
+      };
+    } catch (err) {
+      status.innerText = "ไม่สามารถเข้าถึงกล้องได้: " + err.message;
+    }
   }
 
   let lastScan = "";
   let lastTime = 0;
   async function sendAttendance(name) {
-    if (name === lastScan && Date.now() - lastTime < 5000) return;
-    lastScan = name; lastTime = Date.now();
-    await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ name: name }) });
-    M.toast({html: 'บันทึกสำเร็จ: ' + name, classes: 'green rounded'});
+    // ป้องกันการบันทึกซ้ำภายใน 10 วินาที
+    if (name === lastScan && Date.now() - lastTime < 10000) return;
+    
+    lastScan = name; 
+    lastTime = Date.now();
+    
+    try {
+      await fetch(GAS_URL, { 
+        method: "POST", 
+        mode: 'no-cors', // เพิ่มเพื่อป้องกัน CORS
+        body: JSON.stringify({ name: name }) 
+      });
+      M.toast({html: '✅ บันทึกสำเร็จ: ' + name, classes: 'green rounded'});
+    } catch (e) {
+      console.error("บันทึกไม่สำเร็จ:", e);
+    }
   }
 
   window.onload = init;
 </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
 </body>
 </html>
