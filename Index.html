@@ -1,1 +1,55 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบสแกนใบหน้า - โรงเรียนบ้านตะกุย</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; background: #f4f7f9; }
+    #video-container { position: relative; margin-top: 20px; border: 10px solid white; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); line-height: 0; }
+    canvas { position: absolute; top: 0; left: 0; }
+    .status-panel { width: 90%; max-width: 600px; margin-top: 20px; padding: 20px; text-align: center; }
+  </style>
+</head>
+<body>
 
+  <div class="status-panel card white">
+    <h4>ระบบสแกนใบหน้าอัจฉริยะ</h4>
+    <p id="status" class="blue-text">กำลังเริ่มต้นระบบ...</p>
+    <div class="progress"><div id="loader" class="determinate" style="width: 0%"></div></div>
+  </div>
+
+  <div id="video-container">
+    <video id="video" width="640" height="480" autoplay muted playsinline></video>
+  </div>
+
+<script>
+  // *** วาง URL ของ Google Apps Script (Web App) ของคุณที่นี่ ***
+  const GAS_URL = "วาง_URL_ของ_GAS_ตรงนี้"; 
+  
+  // URL ของ Model AI (ใช้ CDN เพื่อความเร็ว)
+  const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
+  
+  const video = document.getElementById('video');
+  const statusTxt = document.getElementById('status');
+  const loader = document.getElementById('loader');
+  let faceMatcher;
+
+  async function init() {
+    try {
+      statusTxt.innerText = "กำลังโหลด Model AI...";
+      await Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+      ]);
+      loader.style.width = "40%";
+
+      statusTxt.innerText = "กำลังเชื่อมต่อฐานข้อมูลนักเรียน...";
+      const response = await fetch(GAS_URL);
+      const students = await response.json();
+
+      if (students.length === 0) {
+        statusTxt.innerHTML = "<b class='red-text'>ไม่
