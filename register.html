@@ -2,75 +2,66 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>ลงทะเบียนใบหน้า - โรงเรียนบ้านตะกุย</title>
+  <title>ลงทะเบียนนักเรียน - โรงเรียนบ้านตะกุย</title>
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
   <style>
-    body { display: flex; flex-direction: column; align-items: center; padding: 20px; background: #e3f2fd; }
-    #video-container { position: relative; border: 5px solid white; border-radius: 10px; overflow: hidden; }
-    canvas { position: absolute; top: 0; left: 0; }
-    .controls { margin-top: 20px; width: 100%; max-width: 400px; }
+    body { display: flex; flex-direction: column; align-items: center; padding: 20px; background: #e8f5e9; }
+    #video-container { position: relative; border-radius: 15px; overflow: hidden; border: 5px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .form-box { width: 100%; max-width: 400px; margin-top: 20px; }
   </style>
 </head>
 <body>
 
-  <h4>ลงทะเบียนใบหน้านักเรียน</h4>
-  
+  <h4>ลงทะเบียนใบหน้าใหม่</h4>
+
   <div id="video-container">
     <video id="video" width="400" height="300" autoplay muted playsinline></video>
   </div>
 
-  <div class="controls card-panel">
-    <div class="input-field">
-      <input type="text" id="studentId" placeholder="เลขประจำตัวนักเรียน">
-    </div>
-    <button class="btn waves-effect waves-light blue w100" onclick="registerFace()" id="regBtn">
-      ถ่ายรูปและบันทึกใบหน้า
+  <div class="form-box card-panel">
+    <input type="text" id="stdId" placeholder="พิมพ์เลขประจำตัวนักเรียน">
+    <button class="btn green darken-2 waves-effect w100" style="width: 100%" onclick="captureFace()" id="btnSave">
+      ถ่ายรูปและบันทึกรหัสใบหน้า
     </button>
-    <p id="status" class="center-align"></p>
+    <p id="msg" class="center-align blue-text"></p>
+    <div class="center-align" style="margin-top:10px;">
+        <a href="index.html">กลับไปหน้าเช็คชื่อ</a>
+    </div>
   </div>
 
 <script>
-  const GAS_URL = "วาง_URL_ของ_GAS_ตรงนี้"; // ใช้ URL เดียวกับหน้า index.html
+  const GAS_URL = "วาง_URL_ของ_GAS_ตรงนี้";
   const video = document.getElementById('video');
-  const status = document.getElementById('status');
+  const msg = document.getElementById('msg');
 
   async function init() {
-    status.innerText = "กำลังโหลด AI...";
-    const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
+    msg.innerText = "กำลังโหลด AI...";
+    const URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
     await Promise.all([
-      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+      faceapi.nets.ssdMobilenetv1.loadFromUri(URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(URL)
     ]);
-    startVideo();
-  }
-
-  async function startVideo() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
     video.srcObject = stream;
-    status.innerText = "พร้อมลงทะเบียน";
+    msg.innerText = "กล้องพร้อมแล้ว!";
   }
 
-  async function registerFace() {
-    const id = document.getElementById('studentId').value;
-    if (!id) return alert("กรุณาใส่เลขประจำตัว");
-
-    document.getElementById('regBtn').disabled = true;
-    status.innerText = "กำลังประมวลผลใบหน้า...";
-
-    const detection = await faceapi.detectSingleFace(video)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    if (!detection) {
-      alert("ไม่พบใบหน้าในกล้อง กรุณาจัดตำแหน่งใหม่");
-      document.getElementById('regBtn').disabled = false;
+  async function captureFace() {
+    const id = document.getElementById('stdId').value;
+    if(!id) return alert("กรุณาใส่เลขประจำตัว");
+    
+    msg.innerText = "กำลังตรวจจับใบหน้า...";
+    const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+    
+    if(!detection) {
+      alert("ไม่พบใบหน้า! กรุณาขยับหน้าให้ตรงกล้อง");
       return;
     }
 
-    // ส่งรหัสใบหน้าไปที่ GAS
-    const response = await fetch(GAS_URL, {
+    msg.innerText = "กำลังบันทึกลง Google Sheets...";
+    const res = await fetch(GAS_URL, {
       method: "POST",
       body: JSON.stringify({
         action: "register",
@@ -78,12 +69,10 @@
         descriptor: Array.from(detection.descriptor)
       })
     });
-
-    const result = await response.text();
-    status.innerText = result;
-    document.getElementById('regBtn').disabled = false;
+    
+    msg.innerText = await res.text();
+    document.getElementById('stdId').value = "";
   }
-
   init();
 </script>
 </body>
