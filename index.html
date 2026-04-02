@@ -97,7 +97,7 @@ async function startVideo() {
     function handleMatch(name) {
       if (name === lastScan && Date.now() - lastTime < 10000) return;
       lastScan = name; lastTime = Date.now();
-      
+      const subject = document.getElementById('subjectSelect').value;
       const std = studentsData.find(s => s.name === name);
       document.getElementById('popImg').src = std.photoUrl || '';
       document.getElementById('popName').innerText = std.name;
@@ -107,7 +107,14 @@ async function startVideo() {
       const talk = new SpeechSynthesisUtterance("สวัสดีครับคุณ " + name);
       talk.lang = 'th-TH'; window.speechSynthesis.speak(talk);
 
-      fetch(GAS_URL, { method: "POST", mode: 'no-cors', body: JSON.stringify({ name: name, id: std.id }) });
+      fetch(GAS_URL, { 
+    method: "POST", 
+    body: JSON.stringify({ 
+      name: name, 
+      id: std.id,
+      subject: subject // ส่งชื่อวิชาไปด้วย
+    }) 
+});
       setTimeout(() => M.Modal.getInstance(document.getElementById('modalConfirm')).close(), 3000);
     }
     window.onload = init;
