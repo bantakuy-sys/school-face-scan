@@ -1,74 +1,107 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>ลงทะเบียน - บ้านตะกุย</title>
+  <title>เช็คชื่อสแกนใบหน้า - บ้านตะกุย</title>
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
   <style>
-    body { display: flex; flex-direction: column; align-items: center; padding: 20px; background: #e8f5e9; font-family: sans-serif; }
-    #v-box { position: relative; border: 5px solid #fff; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2); line-height: 0; }
-    .container-card { width: 100%; max-width: 450px; margin-top: 20px; }
+    body { display: flex; flex-direction: column; align-items: center; background: #f4f7f6; padding-top: 20px; }
+    #video-wrap { position: relative; border: 8px solid #fff; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; }
+    canvas { position: absolute; top: 0; left: 0; }
+    .student-img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #2196f3; }
   </style>
 </head>
 <body>
-  <h4>ลงทะเบียนใบหน้า</h4>
-  <div id="v-box"><video id="video" width="400" height="300" autoplay muted playsinline></video></div>
-  
-  <div class="container-card card-panel">
-    <div class="input-field">
-      <input type="text" id="stdId" placeholder="กรอกเลขประจำตัวนักเรียน">
+  <div class="card-panel center" style="width: 90%; max-width: 600px;">
+    <h5 class="blue-text">ระบบเช็คชื่อสแกนใบหน้า</h5>
+    <p id="status">โหลดระบบ...</p>
+  </div>
+
+  <div id="video-wrap">
+    <video id="video" width="640" height="480" autoplay muted playsinline></video>
+  </div>
+
+  <div id="modalConfirm" class="modal">
+    <div class="modal-content center">
+      <h4 class="green-text">เช็คชื่อสำเร็จ</h4>
+      <img id="popImg" class="student-img" src="">
+      <h5 id="popName"></h5>
+      <p id="popId"></p>
     </div>
-    <button class="btn green waves-effect" style="width:100%" onclick="reg()">บันทึกข้อมูลและใบหน้า</button>
-    <p id="msg" class="center-align" style="margin-top:15px; font-weight:bold;"></p>
-    <div class="center-align"><a href="index.html">กลับไปหน้าเช็คชื่อ</a></div>
+    <div class="modal-footer"><a href="#!" class="modal-close btn blue">ตกลง</a></div>
   </div>
 
   <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwDHsvRFa9TMwIUQGZke2JDDUXhHz4WcTyblSBxm4QS-b5ljBm6TU6epIhtp5zdsZxN/exec";
     const video = document.getElementById('video');
-    const msg = document.getElementById('msg');
+    const status = document.getElementById('status');
+    let faceMatcher, studentsData = [], lastScan = "", lastTime = 0;
 
     async function init() {
-      msg.innerText = "กำลังโหลด AI...";
       const URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
       await Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri(URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(URL)
       ]);
-      const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-      video.srcObject = stream;
-      msg.innerText = "ระบบพร้อมลงทะเบียน";
+      
+      status.innerText = "ดึงข้อมูลนักเรียน...";
+      const res = await fetch(GAS_URL);
+      studentsData = await res.json();
+      
+      const labeled = studentsData.map(s => {
+        const desc = Array.isArray(s.descriptor) ? s.descriptor : Object.values(s.descriptor);
+        return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(desc)]);
+      }).filter(x => x);
+
+      faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
+      M.Modal.init(document.querySelectorAll('.modal'));
+      startVideo();
     }
 
-    async function reg() {
-      const id = document.getElementById('stdId').value.trim();
-      if(!id) return alert("กรุณาระบุเลขประจำตัว");
+    async function startVideo() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+      video.srcObject = stream;
+      video.onplaying = () => {
+        status.innerText = "พร้อมสแกน";
+        const canvas = faceapi.createCanvasFromMedia(video);
+        document.getElementById('video-wrap').append(canvas);
+        const size = { width: video.width, height: video.height };
+        faceapi.matchDimensions(canvas, size);
+
+        setInterval(async () => {
+          const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
+          const resized = faceapi.resizeResults(detects, size);
+          canvas.getContext('2d').clearRect(0, 0, size.width, size.height);
+          
+          resized.forEach(d => {
+            const result = faceMatcher.findBestMatch(d.descriptor);
+            new faceapi.draw.DrawBox(d.detection.box, { label: result.toString(), boxColor: result.label === 'unknown' ? 'red' : 'green' }).draw(canvas);
+            if(result.label !== 'unknown') handleMatch(result.label);
+          });
+        }, 1000);
+      };
+    }
+
+    function handleMatch(name) {
+      if (name === lastScan && Date.now() - lastTime < 10000) return;
+      lastScan = name; lastTime = Date.now();
       
-      msg.innerText = "กำลังสแกนและจับภาพ...";
-      const d = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
-      if(!d) return alert("ไม่พบใบหน้า! กรุณาขยับหน้าให้ตรงกล้อง");
+      const std = studentsData.find(s => s.name === name);
+      document.getElementById('popImg').src = std.photoUrl || '';
+      document.getElementById('popName').innerText = std.name;
+      document.getElementById('popId').innerText = "ID: " + std.id;
+      M.Modal.getInstance(document.getElementById('modalConfirm')).open();
 
-      // จับภาพจาก Video
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-      const imgBase64 = canvas.toDataURL('image/jpeg', 0.8);
+      const talk = new SpeechSynthesisUtterance("สวัสดีครับคุณ " + name);
+      talk.lang = 'th-TH'; window.speechSynthesis.speak(talk);
 
-      msg.innerText = "กำลังส่งข้อมูล...";
-      const res = await fetch(GAS_URL, {
-        method: "POST",
-        body: JSON.stringify({ 
-          action: "register", 
-          id: id, 
-          descriptor: Array.from(d.descriptor),
-          imageContent: imgBase64
-        })
-      });
-      msg.innerText = await res.text();
+      fetch(GAS_URL, { method: "POST", mode: 'no-cors', body: JSON.stringify({ name: name, id: std.id }) });
+      setTimeout(() => M.Modal.getInstance(document.getElementById('modalConfirm')).close(), 3000);
     }
     window.onload = init;
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 </body>
 </html>
