@@ -71,7 +71,7 @@
     try {
       // 2. โหลด AI Models
       status.innerHTML = '<span class="status-badge orange white-text">กำลังโหลดสมอง AI...</span>';
-      const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
+      const MODEL_URL = 'https://raw.githubusercontent.com/vladmandic/face-api/master/model/';
       await Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
