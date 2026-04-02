@@ -178,8 +178,8 @@
 
         // เสียงพูด
         const speechMsg = (resultText.includes("ไปแล้ว")) 
-          ? `คุณ ${name} บันทึกข้อมูลของวันนี้ไปเรียบร้อยแล้วค่ะ` 
-          : `สวัสดีค่ะคุณ ${name} บันทึกเวลาเรียนสำเร็จค่ะ`;
+          ? `คุณ ${name} บันทึกข้อมูลของวันนี้ไปเรียบร้อยแล้วครับ` 
+          : `สวัสดีค่ะคุณ ${name} บันทึกเวลาเรียนสำเร็จครับ`;
           
         const talk = new SpeechSynthesisUtterance(speechMsg);
         talk.lang = 'th-TH';
