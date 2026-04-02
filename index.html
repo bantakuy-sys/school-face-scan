@@ -3,41 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <title>เช็คชื่อสแกนใบหน้า - โรงเรียนบ้านตะกุย(ค้ำคูณบำรุง)</title>
-  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
   <style>
-    body { display: flex; flex-direction: column; align-items: center; background: #f4f7f6; padding-top: 20px; }
-    #video-wrap { position: relative; border: 8px solid #fff; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; }
+    body { display: flex; flex-direction: column; align-items: center; background: #f4f7f6; padding-top: 20px; font-family: 'Kanit', sans-serif; }
+    #video-wrap { position: relative; border: 8px solid #fff; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; background: #000; }
     canvas { position: absolute; top: 0; left: 0; }
-    .student-img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #2196f3; }
+    .student-img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #2e7d32; margin-top: 10px; }
+    .container-card { width: 90%; max-width: 600px; padding: 20px; }
+    #status { font-weight: bold; }
   </style>
 </head>
 <body>
-  <div class="card-panel center" style="width: 90%; max-width: 600px;">
-    <h5 class="blue-text">ระบบเช็คชื่อสแกนใบหน้า</h5>
-    <p id="status">โหลดระบบ...</p>
+
+  <div class="card-panel center container-card">
+    <h5 class="green-text text-darken-2">ระบบเช็คชื่อสแกนใบหน้า</h5>
+    <p id="status" class="orange-text">กำลังโหลด AI Model...</p>
+    
+    <div class="input-field">
+      <select id="subjectSelect" class="browser-default" style="border-radius: 8px; border: 1px solid #2e7d32; padding: 10px; width: 100%;">
+        <option value="">-- เลือกรายวิชา (ถ้าไม่มีจะบันทึก 'มาเรียน' ปกติ) --</option>
+        <option value="ภาษาไทย">ภาษาไทย</option>
+        <option value="คณิตศาสตร์">คณิตศาสตร์</option>
+        <option value="วิทยาศาสตร์และเทคโนโลยี">วิทยาศาสตร์และเทคโนโลยี</option>
+        <option value="การออกแบและเทคโนโลยี">การออกแบและเทคโนโลยี</option>
+        <option value="สังคมศึกษา ศาสนาและวัฒนธรรม">สังคมศึกษา ศาสนาและวัฒนธรรม</option>
+        <option value="ประวัติศาสตร์">ประวัติศาสตร์</option>
+        <option value="หน้าที่พลเมือง">หน้าที่พลเมือง</option>
+        <option value="การต่อต้านการทุจริต">การต่อต้านการทุจริต</option>
+        <option value="สุขศึกษาและพลศึกษา">สุขศึกษาและพลศึกษา</option>
+        <option value="ศิลปะ">ศิลปะ</option>
+        <option value="การงานอาชีพ">การงานอาชีพ</option>
+        <option value="ภาษาอังกฤษ">ภาษาอังกฤษ</option>
+        <option value="ทักษะอาชีพ">ทักษะอาชีพ</option>
+      </select>
+    </div>
+    <div style="margin-top: 15px;">
+      <a href="register.html" class="blue-text text-darken-2" style="text-decoration: underline;">ลงทะเบียนใบหน้านักเรียนใหม่</a>
+    </div>
   </div>
-  <div class="container-card card-panel">
-  <div class="input-field">
-    <select id="subjectSelect" class="browser-default" style="border-radius: 8px; border: 1px solid #2e7d32; padding: 10px;">
-      <option value="">-- เลือกรายวิชา (ถ้าไม่มีจะบันทึก 'มาเรียน' ของวัน) --</option>
-      <option value="ภาษาไทย">ภาษาไทย</option>
-      <option value="คณิตศาสตร์">คณิตศาสตร์</option>
-      <option value="วิทยาศาสตร์และเทคโนโลยี">วิทยาศาสตร์และเทคโนโลยี</option>
-      <option value="การออกแบและเทคโนโลยี">การออกแบและเทคโนโลยี</option>
-      <option value="สังคมศึกษา ศาสนาและวัฒนธรรม">สังคมศึกษา ศาสนาและวัฒนธรรม</option>
-      <option value="ประวัติศาสตร์">ประวัติศาสตร์</option>
-      <option value="หน้าที่พลเมือง">หน้าที่พลเมือง</option>
-      <option value="การต่อต้านการทุจริต">การต่อต้านการทุจริต</option>
-      <option value="สุขศึกษาและพลศึกษา">สุขศึกษาและพลศึกษา</option>
-      <option value="ศิลปะ">ศิลปะ</option>
-      <option value="การงานอาชีพ">การงานอาชีพ</option>
-      <option value="ภาษาอังกฤษ">ภาษาอังกฤษ</option>
-      <option value="ทักษะอาชีพ">ทักษะอาชีพ</option>
-    </select>
-     </div>
-     <br><br> <center><H5></H5><a href="register.html">ลงทะเบียนใบหน้านักเรียน</a><H5></H5></center>
-</div>
 
   <div id="video-wrap">
     <video id="video" width="640" height="480" autoplay muted playsinline></video>
@@ -45,12 +49,15 @@
 
   <div id="modalConfirm" class="modal">
     <div class="modal-content center">
-      <h4 class="green-text">เช็คชื่อสำเร็จ</h4>
+      <h4 id="resTitle" class="green-text">เช็คชื่อสำเร็จ</h4>
       <img id="popImg" class="student-img" src="">
-      <h5 id="popName"></h5>
-      <p id="popId"></p>
+      <h5 id="popName" style="margin-top: 15px;"></h5>
+      <p id="popId" style="font-size: 1.2rem; color: #555;"></p>
+      <p id="popStatus" class="blue-text" style="font-weight: bold; font-size: 1.1rem;"></p>
     </div>
-    <div class="modal-footer"><a href="#!" class="modal-close btn blue">ตกลง</a></div>
+    <div class="modal-footer">
+      <a href="#!" class="modal-close btn green darken-2">ตกลง</a>
+    </div>
   </div>
 
   <script>
@@ -60,73 +67,132 @@
     let faceMatcher, studentsData = [], lastScan = "", lastTime = 0;
 
     async function init() {
-      const URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
-      await Promise.all([
-        faceapi.nets.ssdMobilenetv1.loadFromUri(URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(URL)
-      ]);
-      
-      status.innerText = "ดึงข้อมูลนักเรียน...";
-      const res = await fetch(GAS_URL);
-      studentsData = await res.json();
-      
-      const labeled = studentsData.map(s => {
-        const desc = Array.isArray(s.descriptor) ? s.descriptor : Object.values(s.descriptor);
-        return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(desc)]);
-      }).filter(x => x);
+      // โหลด Model จาก CDN (เปลี่ยนเป็นตัวที่เสถียรขึ้น)
+      const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
+      try {
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+        ]);
+        
+        status.innerText = "กำลังเชื่อมต่อฐานข้อมูล...";
+        const res = await fetch(GAS_URL);
+        studentsData = await res.json();
+        
+        if (studentsData.length === 0) {
+          status.innerText = "ไม่พบข้อมูลนักเรียน กรุณาลงทะเบียนก่อน";
+          return;
+        }
 
-      faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
-      M.Modal.init(document.querySelectorAll('.modal'));
-      startVideo();
+        const labeled = studentsData.map(s => {
+          if(!s.descriptor) return null;
+          const desc = Array.isArray(s.descriptor) ? s.descriptor : Object.values(s.descriptor);
+          return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(desc)]);
+        }).filter(x => x);
+
+        faceMatcher = new faceapi.FaceMatcher(labeled, 0.5); // 0.5 คือค่าความแม่นยำ
+        M.Modal.init(document.querySelectorAll('.modal'));
+        startVideo();
+      } catch (err) {
+        status.innerText = "เกิดข้อผิดพลาดในการโหลดระบบ: " + err.message;
+      }
     }
 
-async function startVideo() {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-      video.srcObject = stream;
-      video.onplaying = () => {
-        status.innerText = "พร้อมสแกน";
-        const canvas = faceapi.createCanvasFromMedia(video);
-        document.getElementById('video-wrap').append(canvas);
-        const size = { width: video.width, height: video.height };
-        faceapi.matchDimensions(canvas, size);
-
-        setInterval(async () => {
-          const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
-          const resized = faceapi.resizeResults(detects, size);
-          canvas.getContext('2d').clearRect(0, 0, size.width, size.height);
+    async function startVideo() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        video.srcObject = stream;
+        video.onplaying = () => {
+          status.innerText = "ระบบพร้อมสแกน";
+          status.classList.replace('orange-text', 'green-text');
           
-          resized.forEach(d => {
-            const result = faceMatcher.findBestMatch(d.descriptor);
-            new faceapi.draw.DrawBox(d.detection.box, { label: result.toString(), boxColor: result.label === 'unknown' ? 'red' : 'green' }).draw(canvas);
-            if(result.label !== 'unknown') handleMatch(result.label);
-          });
-        }, 1000);
-      };
+          const canvas = faceapi.createCanvasFromMedia(video);
+          document.getElementById('video-wrap').append(canvas);
+          const size = { width: video.width, height: video.height };
+          faceapi.matchDimensions(canvas, size);
+
+          setInterval(async () => {
+            const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
+            const resized = faceapi.resizeResults(detects, size);
+            canvas.getContext('2d').clearRect(0, 0, size.width, size.height);
+            
+            resized.forEach(d => {
+              const result = faceMatcher.findBestMatch(d.descriptor);
+              const label = result.label === 'unknown' ? 'ไม่รู้จัก' : result.label;
+              const color = result.label === 'unknown' ? 'red' : '#2e7d32';
+              
+              new faceapi.draw.DrawBox(d.detection.box, { label: label, boxColor: color }).draw(canvas);
+              
+              if(result.label !== 'unknown') {
+                handleMatch(result.label);
+              }
+            });
+          }, 1000);
+        };
+      } catch (e) {
+        status.innerText = "เข้าถึงกล้องไม่ได้: " + e.message;
+      }
     }
-    function handleMatch(name) {
+
+    async function handleMatch(name) {
+      // ป้องกันการสแกนซ้ำภายใน 10 วินาที
       if (name === lastScan && Date.now() - lastTime < 10000) return;
-      lastScan = name; lastTime = Date.now();
+      
+      lastScan = name; 
+      lastTime = Date.now();
+      
       const subject = document.getElementById('subjectSelect').value;
       const std = studentsData.find(s => s.name === name);
-      document.getElementById('popImg').src = std.photoUrl || '';
+      
+      if (!std) return;
+
+      // แสดงข้อมูลเบื้องต้นบน Modal
+      document.getElementById('popImg').src = std.photoUrl || 'https://via.placeholder.com/150';
       document.getElementById('popName').innerText = std.name;
-      document.getElementById('popId').innerText = "รหัส: " + std.id + " | Class: " + std.stdClass;
-      M.Modal.getInstance(document.getElementById('modalConfirm')).open();
+      document.getElementById('popId').innerText = "รหัส: " + std.id + " | Class: " + (std.stdClass || "-");
+      document.getElementById('popStatus').innerText = "กำลังบันทึก...";
+      
+      const modal = M.Modal.getInstance(document.getElementById('modalConfirm'));
+      modal.open();
 
-      const talk = new SpeechSynthesisUtterance("สวัสดีครับคุณ " + name);
-      talk.lang = 'th-TH'; window.speechSynthesis.speak(talk);
+      // ส่งข้อมูลไปที่ GAS
+      try {
+        const response = await fetch(GAS_URL, { 
+          method: "POST", 
+          body: JSON.stringify({ name: name, id: std.id, subject: subject }) 
+        });
+        const resultText = await response.text();
+        
+        // อัปเดตสถานะบน Modal จากที่ Server ตอบกลับมา
+        document.getElementById('popStatus').innerText = resultText;
+        
+        // เปลี่ยนหัวข้อ Modal ถ้าบันทึกซ้ำ
+        if (resultText.includes("ไปแล้ว")) {
+          document.getElementById('resTitle').innerText = "บันทึกไปแล้ว";
+          document.getElementById('resTitle').className = "orange-text";
+        } else {
+          document.getElementById('resTitle').innerText = "เช็คชื่อสำเร็จ";
+          document.getElementById('resTitle').className = "green-text";
+        }
 
-      fetch(GAS_URL, { 
-    method: "POST", 
-    body: JSON.stringify({ 
-      name: name, 
-      id: std.id,
-      subject: subject // ส่งชื่อวิชาไปด้วย
-    }) 
-});
-      setTimeout(() => M.Modal.getInstance(document.getElementById('modalConfirm')).close(), 3000);
+        // เสียงพูด
+        const speechMsg = (resultText.includes("ไปแล้ว")) 
+          ? `คุณ ${name} บันทึกข้อมูลของวันนี้ไปเรียบร้อยแล้วค่ะ` 
+          : `สวัสดีค่ะคุณ ${name} บันทึกเวลาเรียนสำเร็จค่ะ`;
+          
+        const talk = new SpeechSynthesisUtterance(speechMsg);
+        talk.lang = 'th-TH';
+        window.speechSynthesis.speak(talk);
+
+      } catch (e) {
+        document.getElementById('popStatus').innerText = "เชื่อมต่อล้มเหลว";
+      }
+
+      // ปิด Modal อัตโนมัติใน 4 วินาที
+      setTimeout(() => modal.close(), 4000);
     }
+
     window.onload = init;
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
