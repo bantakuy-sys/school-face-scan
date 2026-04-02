@@ -39,20 +39,51 @@
     msg.innerText = "พร้อมใช้งาน";
   }
 
-  async function reg() {
-    const id = document.getElementById('stdId').value;
-    if(!id) return alert("ใส่เลขประจำตัวด้วยครับ");
-    msg.innerText = "กำลังสแกนใบหน้า...";
-    const d = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
-    if(!d) return alert("ไม่พบใบหน้า!");
-    
-    msg.innerText = "กำลังส่งข้อมูลลง Sheet...";
+async function reg() {
+  const id = document.getElementById('stdId').value;
+  if(!id) return alert("ใส่เลขประจำตัวด้วยครับ");
+
+  if (video.paused || video.ended) return alert("กรุณารอกล้องทำงานสักครู่");
+
+  msg.innerText = "กำลังสแกนใบหน้าและจับภาพ...";
+  
+  // 1. ตรวจจับใบหน้าและ Descriptor ตามปกติ
+  const d = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+  
+  if(!d) {
+    msg.innerText = "ไม่พบใบหน้า! ลองขยับหน้าให้อยู่กลางจอ";
+    return;
+  }
+  
+  // --- ส่วนที่เพิ่ม: จับภาพ (Capture Image) ---
+  const canvas = document.createElement('canvas'); // สร้าง Canvas ชั่วคราว
+  canvas.width = video.width;
+  canvas.height = video.height;
+  canvas.getContext('2d').drawImage(video, 0, 0); // วาดภาพจากวิดีโอลง Canvas
+  
+  // แปลงภาพเป็น Base64 String (JPEG ความละเอียด 0.7)
+  const imageBase64 = canvas.toDataURL('image/jpeg', 0.7); 
+  // ---------------------------------------------
+  
+  msg.innerText = "กำลังส่งข้อมูลลง Sheet และ Upload รูป...";
+  
+  // 2. แก้ไขข้อมูลใน Fetch BODY: เพิ่ม 'imageContent'
+  try {
     const res = await fetch(GAS_URL, {
       method: "POST",
-      body: JSON.stringify({ action: "register", id: id, descriptor: Array.from(d.descriptor) })
+      body: JSON.stringify({ 
+        action: "register", 
+        id: id, 
+        descriptor: Array.from(d.descriptor),
+        imageContent: imageBase64 // --- ส่งไฟล์ภาพ (Base64) ไปด้วย (ใหม่) ---
+      })
     });
     msg.innerText = await res.text();
+  } catch (err) {
+    msg.innerText = "Error: " + err.message;
+    console.error(err);
   }
+}
   window.onload = init;
 </script>
 </body>
