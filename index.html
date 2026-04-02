@@ -111,7 +111,7 @@ async function startVideo() {
       const std = studentsData.find(s => s.name === name);
       document.getElementById('popImg').src = std.photoUrl || '';
       document.getElementById('popName').innerText = std.name;
-      document.getElementById('popId').innerText = "ID: " + std.id;
+      document.getElementById('popId').innerText = "รหัส: " + std.id + " | Class: " + std.stdClass;
       M.Modal.getInstance(document.getElementById('modalConfirm')).open();
 
       const talk = new SpeechSynthesisUtterance("สวัสดีครับคุณ " + name);
