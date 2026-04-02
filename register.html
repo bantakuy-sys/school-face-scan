@@ -42,7 +42,7 @@
       msg.innerText = "ระบบพร้อมลงทะเบียน";
     }
 
-    async function reg() {
+async function reg() {
   const id = document.getElementById('stdId').value.trim();
   if(!id) return alert("กรุณาระบุเลขประจำตัว");
   
@@ -54,16 +54,21 @@
     return;
   }
 
-  // --- ส่วนการจับภาพจากวิดีโอ ---
+  // --- ส่วนการจับภาพและบีบอัด (แก้ไขใหม่) ---
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth; 
-  canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0);
+  canvas.width = 320;  // ลดขนาดเหลือ 320px
+  canvas.height = 240; // ลดขนาดเหลือ 240px
+  const ctx = canvas.getContext('2d');
   
-  // แปลงภาพเป็น Base64 String
-  const imgBase64 = canvas.toDataURL('image/jpeg', 0.8);
+  // กลับด้านรูปภาพให้ตรงกับวิดีโอ (ถ้าคุณ Mirror วิดีโอไว้)
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0, 320, 240);
+  
+  // แปลงเป็น JPEG คุณภาพ 0.5 (ไฟล์จะเล็กมากแต่ยังเห็นหน้าชัด)
+  const imgBase64 = canvas.toDataURL('image/jpeg', 0.5);
 
-  msg.innerText = "กำลังส่งข้อมูลไปยังฐานข้อมูล...";
+  msg.innerText = "กำลังส่งข้อมูล...";
   
   try {
     const res = await fetch(GAS_URL, {
@@ -72,19 +77,16 @@
         action: "register", 
         id: id, 
         descriptor: Array.from(d.descriptor),
-        imageContent: imgBase64 // *** ชื่อต้องตรงกับในโค้ด GAS ***
+        imageContent: imgBase64 
       })
     });
     
     const resultText = await res.text();
     msg.innerText = resultText;
-    
-    if(resultText.includes("สำเร็จ")) {
-      document.getElementById('stdId').value = ""; // ล้างช่อง ID เมื่อสำเร็จ
-    }
   } catch (err) {
-    msg.innerText = "เกิดข้อผิดพลาด: " + err.message;
+    msg.innerText = "ส่งข้อมูลไม่สำเร็จ: " + err.message;
   }
+}
 }
     window.onload = init;
   </script>
