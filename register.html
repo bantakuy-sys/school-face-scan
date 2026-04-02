@@ -43,31 +43,49 @@
     }
 
     async function reg() {
-      const id = document.getElementById('stdId').value.trim();
-      if(!id) return alert("กรุณาระบุเลขประจำตัว");
-      
-      msg.innerText = "กำลังสแกนและจับภาพ...";
-      const d = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
-      if(!d) return alert("ไม่พบใบหน้า! กรุณาขยับหน้าให้ตรงกล้อง");
+  const id = document.getElementById('stdId').value.trim();
+  if(!id) return alert("กรุณาระบุเลขประจำตัว");
+  
+  msg.innerText = "กำลังสแกนใบหน้าและจับภาพ...";
+  const d = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+  
+  if(!d) {
+    msg.innerText = "ไม่พบใบหน้า! กรุณาขยับหน้าให้ตรงกล้อง";
+    return;
+  }
 
-      // จับภาพจาก Video
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-      const imgBase64 = canvas.toDataURL('image/jpeg', 0.8);
+  // --- ส่วนการจับภาพจากวิดีโอ ---
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth; 
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  
+  // แปลงภาพเป็น Base64 String
+  const imgBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
-      msg.innerText = "กำลังส่งข้อมูล...";
-      const res = await fetch(GAS_URL, {
-        method: "POST",
-        body: JSON.stringify({ 
-          action: "register", 
-          id: id, 
-          descriptor: Array.from(d.descriptor),
-          imageContent: imgBase64
-        })
-      });
-      msg.innerText = await res.text();
+  msg.innerText = "กำลังส่งข้อมูลไปยังฐานข้อมูล...";
+  
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({ 
+        action: "register", 
+        id: id, 
+        descriptor: Array.from(d.descriptor),
+        imageContent: imgBase64 // *** ชื่อต้องตรงกับในโค้ด GAS ***
+      })
+    });
+    
+    const resultText = await res.text();
+    msg.innerText = resultText;
+    
+    if(resultText.includes("สำเร็จ")) {
+      document.getElementById('stdId').value = ""; // ล้างช่อง ID เมื่อสำเร็จ
     }
+  } catch (err) {
+    msg.innerText = "เกิดข้อผิดพลาด: " + err.message;
+  }
+}
     window.onload = init;
   </script>
 </body>
