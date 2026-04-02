@@ -1,92 +1,74 @@
 <!DOCTYPE html>
-<html lang="th">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบเช็คชื่อสแกนใบหน้า - บ้านตะกุย</title>
-  
+  <title>ลงทะเบียน - บ้านตะกุย</title>
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
-  
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  
   <style>
-    body { display: flex; flex-direction: column; align-items: center; background: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-bottom: 50px; }
-    #video-container { position: relative; margin-top: 20px; border: 8px solid #fff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden; line-height: 0; background: #000; }
-    canvas { position: absolute; top: 0; left: 0; z-index: 10; }
-    video { display: block; filter: scaleX(-1); } /* Mirror video สำหรับการใช้งานที่คุ้นเคย */
-    .info-card { width: 90%; max-width: 600px; margin-top: 20px; border-radius: 15px !important; }
-    .status-badge { padding: 5px 15px; border-radius: 20px; font-weight: bold; }
-    #verifyPhoto { width: 200px; height: 200px; object-fit: cover; border-radius: 50%; border: 5px solid #2196f3; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+    body { display: flex; flex-direction: column; align-items: center; padding: 20px; background: #e8f5e9; font-family: sans-serif; }
+    #v-box { position: relative; border: 5px solid #fff; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2); line-height: 0; }
+    .container-card { width: 100%; max-width: 450px; margin-top: 20px; }
   </style>
 </head>
 <body>
-
-  <div class="info-card card white z-depth-2">
-    <div class="card-content center">
-      <span class="card-title blue-text text-darken-2"><b>ระบบเช็คชื่อสแกนใบหน้า (บ้านตะกุย)</b></span>
-      <p id="status" class="grey-text text-darken-1">กำลังเตรียมระบบ...</p>
-    </div>
-  </div>
-
-  <div id="video-container">
-    <video id="video" width="640" height="480" autoplay muted playsinline></video>
-  </div>
-
-  <div style="margin-top:25px;">
-    <a href="register.html" class="btn-flat waves-effect blue-text"><i class="material-icons left">person_add</i>ไปหน้าลงทะเบียน</a>
-  </div>
-
-  <div id="verifyModal" class="modal">
-    <div class="modal-content center">
-      <h4 class="blue-text">เช็คชื่อสำเร็จ!</h4>
-      <img id="verifyPhoto" src="" alt="Student Photo">
-      <h5 id="verifyName" style="margin-top:15px; font-weight:bold;">-</h5>
-      <p>ID: <span id="verifyId">-</span></p>
-    </div>
-    <div class="modal-footer">
-      <a href="#!" class="modal-close waves-effect waves-green btn blue">ตกลง</a>
-    </div>
-  </div>
-
-<script>
-  // *** ใส่ URL Web App ของคุณที่นี่ ***
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbyoRn013tg6FOGk07GkBA09I1Z90BvAGgJWFGn9guqZhnSVZhsH1MrqNMdNPgdqIF07/exec";
+  <h4>ลงทะเบียนใบหน้า</h4>
+  <div id="v-box"><video id="video" width="400" height="300" autoplay muted playsinline></video></div>
   
-  const video = document.getElementById('video');
-  const status = document.getElementById('status');
-  let faceMatcher;
-  let studentsData = [];
-  let lastScan = "";
-  let lastTime = 0;
+  <div class="container-card card-panel">
+    <div class="input-field">
+      <input type="text" id="stdId" placeholder="กรอกเลขประจำตัวนักเรียน">
+    </div>
+    <button class="btn green waves-effect" style="width:100%" onclick="reg()">บันทึกข้อมูลและใบหน้า</button>
+    <p id="msg" class="center-align" style="margin-top:15px; font-weight:bold;"></p>
+    <div class="center-align"><a href="index.html">กลับไปหน้าเช็คชื่อ</a></div>
+  </div>
 
-  async function init() {
-    // 1. ตรวจสอบ Library
-    if (typeof faceapi === 'undefined') {
-      status.innerText = "กำลังโหลด Library...";
-      setTimeout(init, 1000);
-      return;
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwDHsvRFa9TMwIUQGZke2JDDUXhHz4WcTyblSBxm4QS-b5ljBm6TU6epIhtp5zdsZxN/exec";
+    const video = document.getElementById('video');
+    const msg = document.getElementById('msg');
+
+    async function init() {
+      msg.innerText = "กำลังโหลด AI...";
+      const URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
+      await Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri(URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(URL)
+      ]);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+      video.srcObject = stream;
+      msg.innerText = "ระบบพร้อมลงทะเบียน";
     }
 
-    try {
-      // 2. โหลด AI Models
-      status.innerHTML = '<span class="status-badge orange white-text">กำลังโหลดสมอง AI...</span>';
-      const MODEL_URL = 'https://raw.githubusercontent.com/vladmandic/face-api/master/model/';
-      await Promise.all([
-        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-      ]);
+    async function reg() {
+      const id = document.getElementById('stdId').value.trim();
+      if(!id) return alert("กรุณาระบุเลขประจำตัว");
+      
+      msg.innerText = "กำลังสแกนและจับภาพ...";
+      const d = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+      if(!d) return alert("ไม่พบใบหน้า! กรุณาขยับหน้าให้ตรงกล้อง");
 
-      // 3. ดึงข้อมูลนักเรียนจาก Google Sheets
-      status.innerHTML = '<span class="status-badge blue white-text">กำลังเชื่อมต่อฐานข้อมูล...</span>';
-      const res = await fetch(GAS_URL);
-      studentsData = await res.json();
+      // จับภาพจาก Video
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const imgBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
-      if (!studentsData || studentsData.length === 0) {
-        status.innerHTML = "<span class='red-text'><b>ไม่พบข้อมูลนักเรียนที่มีใบหน้าในระบบ</b></span>";
-        return;
-      }
-
-      // 4. เตรียมข้อมูลเปรียบเทียบ (Face Matcher)
-      const labeled
+      msg.innerText = "กำลังส่งข้อมูล...";
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ 
+          action: "register", 
+          id: id, 
+          descriptor: Array.from(d.descriptor),
+          imageContent: imgBase64
+        })
+      });
+      msg.innerText = await res.text();
+    }
+    window.onload = init;
+  </script>
+</body>
+</html>
