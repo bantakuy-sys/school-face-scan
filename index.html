@@ -11,31 +11,31 @@
     body { display: flex; flex-direction: column; align-items: center; background: #f4f7f6; padding-top: 20px; font-family: 'Kanit', sans-serif; }
     #login-page { display: flex; height: 80vh; align-items: center; justify-content: center; }
     #main-page { display: none; width: 95%; max-width: 1200px; }
-/* ค้นหาและเปลี่ยน #video-wrap กับวิดีโอให้เป็นแบบนี้ */
-#video-wrap { 
-  position: relative; 
-  border: 8px solid #fff; 
-  border-radius: 20px; 
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
-  overflow: hidden; 
-  background: #000; 
-  width: 100%;          /* เปลี่ยนจาก 640px เป็น 100% เพื่อให้หดตามจอ */
-  max-width: 640px;     /* คุมขนาดไม่ให้ใหญ่เกินขนาดกล้องจริง */
-  margin: auto; 
-  aspect-ratio: 4 / 3;  /* บังคับสัดส่วนกล้อง 4:3 อัตโนมัติ */
-}
 
-#video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;    /* ให้ภาพวิดีโอแนบสนิทพอดีกรอบ */
-}
+    #video-wrap { 
+      position: relative; 
+      border: 8px solid #fff; 
+      border-radius: 20px; 
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+      overflow: hidden; 
+      background: #000; 
+      width: 100%;          
+      max-width: 640px;     
+      margin: auto; 
+      aspect-ratio: 4 / 3;  
+    }
 
-canvas { 
-  position: absolute; 
-  top: 0; 
-  left: 0; 
-}
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;    
+    }
+
+    canvas { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+    }
   </style>
 </head>
 <body>
@@ -56,7 +56,7 @@ canvas {
         <div id="video-wrap">
           <video id="video" width="500" height="300" autoplay muted playsinline></video>
         </div>
-        <div class="cam-controls">
+        <div class="cam-controls" style="margin-top: 15px;">
           <button class="btn blue waves-effect" onclick="toggleCamera()"><i class="material-icons left">videocam</i> เปิด/ปิดกล้อง</button>
           <button class="btn orange waves-effect" onclick="switchCamera()"><i class="material-icons left">cameraswitch</i> สลับกล้อง</button>
         </div>
@@ -69,7 +69,7 @@ canvas {
             <span id="user-info">กำลังโหลด...</span>
           </div>
           <a href="#" onclick="logout()" class="red-text right" style="margin-top:5px; font-weight:bold;">ออกจากระบบ</a>
-          
+           
           <h6 style="margin-top: 20px; font-weight: bold;">เลือกรายวิชาเรียน:</h6>
           <div class="input-field">
             <select id="subjectSelect" class="browser-default" style="border-radius: 8px; border: 1px solid #2e7d32; padding: 10px; width: 100%;">
@@ -123,12 +123,16 @@ canvas {
     const status = document.getElementById('status');
     let currentStream = null, useFacingMode = "user";
     let faceMatcher, studentsData = [], lastScan = "", lastTime = 0, scanInterval = null;
+    
+    // [จุดแก้ไข] ตัวแปรโกลบอลสำหรับจำชื่อผู้ใช้งานของเครื่องนี้
+    let currentUsername = "";
 
     // ตรวจสอบ Session เก่าเมื่อโหลดหน้าเว็บ
     window.onload = () => {
       const savedUser = sessionStorage.getItem("user");
       if (savedUser) {
         const data = JSON.parse(savedUser);
+        currentUsername = data.username || ""; // ดึงชื่อผู้ใช้มาเก็บไว้ในระบบ
         document.getElementById('login-page').style.display = 'none';
         document.getElementById('main-page').style.display = 'block';
         document.getElementById('user-info').innerText = `${data.name} (${data.role})`;
@@ -146,7 +150,12 @@ canvas {
         const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "login", username: u, password: p }) });
         const data = await res.json();
         if (data.status === "success") {
+          // ประกันความปลอดภัยหากหลังบ้านไม่ได้ส่งโครงสร้าง username กลับมา ให้เอาตัวแปรฝั่งหน้าบ้านใส่แทน
+          if (!data.username) data.username = u;
+          
           sessionStorage.setItem("user", JSON.stringify(data));
+          currentUsername = data.username; // บันทึกชื่อผู้ใช้ลงในระบบของหน้าจอปัจจุบัน
+          
           document.getElementById('login-page').style.display = 'none';
           document.getElementById('main-page').style.display = 'block';
           document.getElementById('user-info').innerText = `${data.name} (${data.role})`;
@@ -175,50 +184,43 @@ canvas {
         });
         video.srcObject = currentStream;
         
-// ค้นหาฟังก์ชัน startVideo() เดิม แล้วปรับปรุงช่วง video.onplaying เป็นแบบนี้ครับ:
+        video.onplaying = () => {
+          status.innerText = "ระบบพร้อมสแกนใบหน้า";
+          status.className = "green-text";
+          
+          const oldCanvas = document.querySelector('canvas');
+          if (oldCanvas) oldCanvas.remove();
 
-video.onplaying = () => {
-  status.innerText = "ระบบพร้อมสแกนใบหน้า";
-  status.className = "green-text";
-  
-  // ลบ Canvas เก่าทิ้งถ้ามีการสลับกล้อง
-  const oldCanvas = document.querySelector('canvas');
-  if (oldCanvas) oldCanvas.remove();
+          const canvas = faceapi.createCanvasFromMedia(video);
+          document.getElementById('video-wrap').append(canvas);
+          
+          const size = { width: video.offsetWidth, height: video.offsetHeight };
+          faceapi.matchDimensions(canvas, size);
 
-  const canvas = faceapi.createCanvasFromMedia(video);
-  document.getElementById('video-wrap').append(canvas);
-  
-  // เปลี่ยนตรงนี้: ใช้ความกว้างและสูงที่แสดงผลจริงบนจอปัจจุบัน
-  const size = { width: video.offsetWidth, height: video.offsetHeight };
-  faceapi.matchDimensions(canvas, size);
-
-  if (scanInterval) clearInterval(scanInterval);
-  
-  scanInterval = setInterval(async () => {
-    if (video.paused || !faceMatcher) return;
-    
-    const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
-    
-    // ดึงขนาดหน้าจอ ณ วินาทีนั้นๆ (เผื่อผู้ใช้งานย่อขยายบราวเซอร์)
-    const currentSize = { width: video.offsetWidth, height: video.offsetHeight };
-    const resized = faceapi.resizeResults(detects, currentSize);
-    
-    // เคลียร์และวาดกรอบให้ตรงพิกัดจริง
-    canvas.getContext('2d').clearRect(0, 0, currentSize.width, currentSize.height);
-    
-    resized.forEach(d => {
-      const result = faceMatcher.findBestMatch(d.descriptor);
-      const label = result.label === 'unknown' ? 'ไม่รู้จัก' : result.label;
-      const color = result.label === 'unknown' ? 'red' : '#2e7d32';
-      
-      new faceapi.draw.DrawBox(d.detection.box, { label: label, boxColor: color }).draw(canvas);
-      
-      if (result.label !== 'unknown') {
-        handleMatch(result.label);
-      }
-    });
-  }, 1000);
-};
+          if (scanInterval) clearInterval(scanInterval);
+          
+          scanInterval = setInterval(async () => {
+            if (video.paused || !faceMatcher) return;
+            
+            const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
+            const currentSize = { width: video.offsetWidth, height: video.offsetHeight };
+            const resized = faceapi.resizeResults(detects, currentSize);
+            
+            canvas.getContext('2d').clearRect(0, 0, currentSize.width, currentSize.height);
+            
+            resized.forEach(d => {
+              const result = faceMatcher.findBestMatch(d.descriptor);
+              const label = result.label === 'unknown' ? 'ไม่รู้จัก' : result.label;
+              const color = result.label === 'unknown' ? 'red' : '#2e7d32';
+              
+              new faceapi.draw.DrawBox(d.detection.box, { label: label, boxColor: color }).draw(canvas);
+              
+              if (result.label !== 'unknown') {
+                handleMatch(result.label);
+              }
+            });
+          }, 1000);
+        };
 
       } catch (e) { 
         status.innerText = "ไม่สามารถเข้าถึงกล้องได้: " + e.message;
@@ -239,19 +241,22 @@ video.onplaying = () => {
     async function init() {
       const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
       try {
-        // โหลด AI Model
         await Promise.all([
           faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
           faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
           faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
         ]);
         
-        // โหลดรายวิชาจากหน้าชีต subject
         status.innerText = "กำลังโหลดข้อมูลวิชาเรียน...";
         const resSub = await fetch(GAS_URL + "?action=getSubjects");
         const subjects = await resSub.json();
         const subjectSelect = document.getElementById('subjectSelect');
         
+        // ล้างตัวเลือกเก่ายกเว้นตัวแรกสุด
+        while (subjectSelect.options.length > 1) {
+          subjectSelect.remove(1);
+        }
+
         subjects.forEach(sub => {
           const opt = document.createElement('option');
           opt.value = sub;
@@ -259,7 +264,6 @@ video.onplaying = () => {
           subjectSelect.appendChild(opt);
         });
 
-        // โหลดข้อมูลรายชื่อนักเรียน
         status.innerText = "กำลังเชื่อมต่อฐานข้อมูลนักเรียน...";
         const res = await fetch(GAS_URL);
         studentsData = await res.json();
@@ -283,7 +287,7 @@ video.onplaying = () => {
 
     // --- 4. บันทึกผลเมื่อใบหน้าตรงกับฐานข้อมูล ---
     async function handleMatch(name) {
-      if (name === lastScan && Date.now() - lastTime < 8000) return; // ล็อค 8 วินาทีป้องกันสแกนซ้ำถี่ๆ
+      if (name === lastScan && Date.now() - lastTime < 8000) return; 
       lastScan = name; 
       lastTime = Date.now();
       
@@ -292,7 +296,6 @@ video.onplaying = () => {
 
       const subject = document.getElementById('subjectSelect').value;
       
-      // ดึง Modal ข้อมูลขึ้นมาโชว์ก่อนส่งข้อมูล
       document.getElementById('popImg').src = std.photoUrl || 'https://via.placeholder.com/150';
       document.getElementById('popName').innerText = std.name;
       document.getElementById('popId').innerText = `รหัสประจำตัว: ${std.id} | ชั้นเรียน: ${std.stdClass || '-'}`;
@@ -302,9 +305,14 @@ video.onplaying = () => {
       modal.open();
 
       try {
+        // [จุดแก้ไขหลัก] ส่ง username ของครูผู้ใช้พ่วงไปด้วยเพื่อให้บันทึกลง URL_ID ถูกต้อง
         const response = await fetch(GAS_URL, { 
           method: "POST", 
-          body: JSON.stringify({ id: std.id, subject: subject }) 
+          body: JSON.stringify({ 
+            id: std.id, 
+            subject: subject,
+            username: currentUsername 
+          }) 
         });
         const resultText = await response.text();
         
@@ -318,13 +326,12 @@ video.onplaying = () => {
           document.getElementById('resTitle').className = "green-text";
         }
 
-        // ระบบเสียงพูดจำลอง TTS
         const speechMsg = resultText.includes("ไปแล้ว") ? `คุณ ${name} เช็คชื่อวิชานี้ไปแล้วค่ะ` : `คุณ ${name} เช็คชื่อสำเร็จค่ะ`;
         const talk = new SpeechSynthesisUtterance(speechMsg);
         talk.lang = 'th-TH';
         window.speechSynthesis.speak(talk);
 
-        updateLogs(); // อัปเดตตารางสรุปด้านล่างทันที
+        updateLogs(); 
       } catch (e) {
         document.getElementById('popStatus').innerText = "ล้มเหลว: ไม่สามารถส่งข้อมูลหาคลาวด์ได้";
       }
@@ -335,7 +342,8 @@ video.onplaying = () => {
     // --- 5. ดึงตารางประวัติเช็คชื่อล่าสุด ---
     async function updateLogs() {
       try {
-        const res = await fetch(GAS_URL + "?action=getLogs");
+        // [จุดแก้ไข] ส่ง username พ่วงไปด้วยตอนขอประวัติบันทึก จะได้ดึงเฉพาะตารางของครูคนนั้นๆ มาโชว์
+        const res = await fetch(GAS_URL + "?action=getLogs&username=" + encodeURIComponent(currentUsername));
         const logs = await res.json();
         let html = "";
         
@@ -363,9 +371,14 @@ video.onplaying = () => {
       
       status.innerText = "กำลังทำการลบแถวข้อมูล...";
       try {
+        // [จุดแก้ไข] ส่ง username ไปด้วยในขั้นตอนลบข้อมูลหลังบ้าน จะได้ลบในชีตห้องของครูถูกคน
         const res = await fetch(GAS_URL, { 
           method: 'POST', 
-          body: JSON.stringify({ action: "deleteAttendance", row: rowId }) 
+          body: JSON.stringify({ 
+            action: "deleteAttendance", 
+            row: rowId,
+            username: currentUsername
+          }) 
         });
         const msg = await res.text();
         alert(msg);
