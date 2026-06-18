@@ -2,183 +2,198 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบเช็คชื่อสแกนใบหน้า</title>
+  <title>เช็คชื่อสแกนใบหน้า - โรงเรียนบ้านตะกุย(ค้ำคูณบำรุง)</title>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
-    body { background: #f4f7f6; font-family: 'Kanit', sans-serif; }
-    #login-page { display: flex; height: 100vh; align-items: center; justify-content: center; }
-    #main-page { display: none; padding: 20px; }
-    #video-wrap { position: relative; border: 5px solid #fff; border-radius: 15px; overflow: hidden; background: #000; width: 100%; max-width: 640px; margin: auto; }
+    body { display: flex; flex-direction: column; align-items: center; background: #f4f7f6; padding-top: 20px; font-family: 'Kanit', sans-serif; }
+    #video-wrap { position: relative; border: 8px solid #fff; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; background: #000; }
     canvas { position: absolute; top: 0; left: 0; }
-    .cam-controls { margin: 10px 0; }
-    .log-table { margin-top: 20px; background: white; border-radius: 10px; }
+    .student-img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid #2e7d32; margin-top: 10px; }
+    .container-card { width: 90%; max-width: 600px; padding: 20px; }
+    #status { font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <div id="login-page">
-    <div class="card-panel center" style="width: 350px;">
-      <h5>เข้าสู่ระบบ (Teacher/Staff)</h5>
-      <div class="input-field"><input type="text" id="user" placeholder="Username"></div>
-      <div class="input-field"><input type="password" id="pass" placeholder="Password"></div>
-      <button class="btn green darken-2" onclick="login()" style="width: 100%;">Login</button>
+  <div class="card-panel center container-card">
+    <h5 class="green-text text-darken-2">ระบบเช็คชื่อสแกนใบหน้า</h5>
+    <p id="status" class="orange-text">กำลังโหลด AI Model...</p>
+    
+    <div class="input-field">
+      <select id="subjectSelect" class="browser-default" style="border-radius: 8px; border: 1px solid #2e7d32; padding: 10px; width: 100%;">
+        <option value="">-- เลือกรายวิชา (ถ้าไม่มีจะบันทึก 'มาเรียน' ปกติ) --</option>
+        <option value="ภาษาไทย">ภาษาไทย</option>
+        <option value="คณิตศาสตร์">คณิตศาสตร์</option>
+        <option value="วิทยาศาสตร์และเทคโนโลยี">วิทยาศาสตร์และเทคโนโลยี</option>
+        <option value="การออกแบและเทคโนโลยี">การออกแบและเทคโนโลยี</option>
+        <option value="สังคมศึกษา ศาสนาและวัฒนธรรม">สังคมศึกษา ศาสนาและวัฒนธรรม</option>
+        <option value="ประวัติศาสตร์">ประวัติศาสตร์</option>
+        <option value="หน้าที่พลเมือง">หน้าที่พลเมือง</option>
+        <option value="การต่อต้านการทุจริต">การต่อต้านการทุจริต</option>
+        <option value="สุขศึกษาและพลศึกษา">สุขศึกษาและพลศึกษา</option>
+        <option value="ศิลปะ">ศิลปะ</option>
+        <option value="การงานอาชีพ">การงานอาชีพ</option>
+        <option value="ภาษาอังกฤษ">ภาษาอังกฤษ</option>
+        <option value="ทักษะอาชีพ">ทักษะอาชีพ</option>
+      </select>
+    </div>
+    <div style="margin-top: 15px;">
+      <a href="register.html" class="blue-text text-darken-2" style="text-decoration: underline;">ลงทะเบียนใบหน้านักเรียนใหม่</a>
     </div>
   </div>
 
-  <div id="main-page">
-    <div class="row">
-      <div class="col s12 m6">
-        <div id="video-wrap">
-          <video id="video" width="640" height="480" autoplay muted playsinline></video>
-        </div>
-        <div class="center-align cam-controls">
-          <button class="btn blue" onclick="toggleCamera()"><i class="material-icons left">videocam</i> เปิด/ปิด</button>
-          <button class="btn orange" onclick="switchCamera()"><i class="material-icons left">cameraswitch</i> สลับกล้อง</button>
-        </div>
-      </div>
-
-      <div class="col s12 m6">
-        <div class="card-panel">
-          <span id="user-info"></span> | <a href="#" onclick="logout()" class="red-text">ออกจากระบบ</a>
-          <h6>วิชาที่สอน:</h6>
-          <select id="subjectSelect" class="browser-default">
-            <option value="มาเรียน">มาเรียนปกติ</option>
-            <option value="ภาษาไทย">ภาษาไทย</option>
-            <option value="คณิตศาสตร์">คณิตศาสตร์</option>
-            </select>
-          <p id="status" class="orange-text">เตรียมระบบ AI...</p>
-        </div>
-
-        <div class="log-table">
-          <table class="centered striped">
-            <thead><tr><th>เวลา</th><th>ชื่อ</th><th>วิชา</th><th>จัดการ</th></tr></thead>
-            <tbody id="log-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+  <div id="video-wrap">
+    <video id="video" width="640" height="480" autoplay muted playsinline></video>
   </div>
 
   <div id="modalConfirm" class="modal">
     <div class="modal-content center">
-      <h4 id="resTitle">สำเร็จ</h4>
-      <img id="popImg" style="width:100px; border-radius:50%;">
-      <h5 id="popName"></h5>
-      <p id="popStatus"></p>
+      <h4 id="resTitle" class="green-text">เช็คชื่อสำเร็จ</h4>
+      <img id="popImg" class="student-img" src="">
+      <h5 id="popName" style="margin-top: 15px;"></h5>
+      <p id="popId" style="font-size: 1.2rem; color: #555;"></p>
+      <p id="popStatus" class="blue-text" style="font-weight: bold; font-size: 1.1rem;"></p>
     </div>
-    <div class="modal-footer"><a href="#!" class="modal-close btn green">ตกลง</a></div>
+    <div class="modal-footer">
+      <a href="#!" class="modal-close btn green darken-2">ตกลง</a>
+    </div>
   </div>
 
   <script>
-    const GAS_URL = "URL_WEB_APP_ของคุณ";
-    let currentStream = null, useFacingMode = "user", video = document.getElementById('video');
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxhc2O954rUMfhNW6gpP_u9QtdEHe-tsHnvzTbIFEXvMjPFUXP2IvXmBWHUItK-XERb/exec";
+    const video = document.getElementById('video');
+    const status = document.getElementById('status');
     let faceMatcher, studentsData = [], lastScan = "", lastTime = 0;
 
-    // --- ระบบ Login ---
-    async function login() {
-      const u = document.getElementById('user').value;
-      const p = document.getElementById('pass').value;
-      const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "login", username: u, password: p }) });
-      const data = await res.json();
-      if (data.status === "success") {
-        sessionStorage.setItem("user", JSON.stringify(data));
-        document.getElementById('login-page').style.display = 'none';
-        document.getElementById('main-page').style.display = 'block';
-        document.getElementById('user-info').innerText = data.name + " (" + data.role + ")";
-        init();
-      } else { alert("Login ไม่ถูกต้อง"); }
-    }
-
-    function logout() { sessionStorage.clear(); location.reload(); }
-
-    // --- กล้อง ---
-    async function startVideo() {
-      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-      try {
-        currentStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: useFacingMode } });
-        video.srcObject = currentStream;
-      } catch (e) { alert("เปิดกล้องไม่ได้"); }
-    }
-
-    function toggleCamera() {
-      if (video.paused) video.play(); else video.pause();
-    }
-
-    function switchCamera() {
-      useFacingMode = (useFacingMode === "user") ? "environment" : "user";
-      startVideo();
-    }
-
-    // --- ระบบสแกน ---
     async function init() {
+      // โหลด Model จาก CDN (เปลี่ยนเป็นตัวที่เสถียรขึ้น)
       const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
-      await Promise.all([
-        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-      ]);
-      const res = await fetch(GAS_URL);
-      studentsData = await res.json();
-      const labeled = studentsData.map(s => {
-        if(!s.descriptor) return null;
-        return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(Object.values(s.descriptor))]);
-      }).filter(x => x);
-      faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
-      M.Modal.init(document.querySelectorAll('.modal'));
-      startVideo();
-      updateLogs();
-      setInterval(scan, 1000);
+      try {
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+        ]);
+        
+        status.innerText = "กำลังเชื่อมต่อฐานข้อมูล...";
+        const res = await fetch(GAS_URL);
+        studentsData = await res.json();
+        
+        if (studentsData.length === 0) {
+          status.innerText = "ไม่พบข้อมูลนักเรียน กรุณาลงทะเบียนก่อน";
+          return;
+        }
+
+        const labeled = studentsData.map(s => {
+          if(!s.descriptor) return null;
+          const desc = Array.isArray(s.descriptor) ? s.descriptor : Object.values(s.descriptor);
+          return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(desc)]);
+        }).filter(x => x);
+
+        faceMatcher = new faceapi.FaceMatcher(labeled, 0.5); // 0.5 คือค่าความแม่นยำ
+        M.Modal.init(document.querySelectorAll('.modal'));
+        startVideo();
+      } catch (err) {
+        status.innerText = "เกิดข้อผิดพลาดในการโหลดระบบ: " + err.message;
+      }
     }
 
-    async function scan() {
-      if (video.paused || !faceMatcher) return;
-      const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
-      if (detects.length > 0) {
-        detects.forEach(d => {
-          const result = faceMatcher.findBestMatch(d.descriptor);
-          if (result.label !== 'unknown') handleMatch(result.label);
-        });
+    async function startVideo() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        video.srcObject = stream;
+        video.onplaying = () => {
+          status.innerText = "ระบบพร้อมสแกน";
+          status.classList.replace('orange-text', 'green-text');
+          
+          const canvas = faceapi.createCanvasFromMedia(video);
+          document.getElementById('video-wrap').append(canvas);
+          const size = { width: video.width, height: video.height };
+          faceapi.matchDimensions(canvas, size);
+
+          setInterval(async () => {
+            const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
+            const resized = faceapi.resizeResults(detects, size);
+            canvas.getContext('2d').clearRect(0, 0, size.width, size.height);
+            
+            resized.forEach(d => {
+              const result = faceMatcher.findBestMatch(d.descriptor);
+              const label = result.label === 'unknown' ? 'ไม่รู้จัก' : result.label;
+              const color = result.label === 'unknown' ? 'red' : '#2e7d32';
+              
+              new faceapi.draw.DrawBox(d.detection.box, { label: label, boxColor: color }).draw(canvas);
+              
+              if(result.label !== 'unknown') {
+                handleMatch(result.label);
+              }
+            });
+          }, 1000);
+        };
+      } catch (e) {
+        status.innerText = "เข้าถึงกล้องไม่ได้: " + e.message;
       }
     }
 
     async function handleMatch(name) {
-      if (name === lastScan && Date.now() - lastTime < 8000) return;
-      lastScan = name; lastTime = Date.now();
-      const std = studentsData.find(s => s.name === name);
-      const sub = document.getElementById('subjectSelect').value;
+      // ป้องกันการสแกนซ้ำภายใน 10 วินาที
+      if (name === lastScan && Date.now() - lastTime < 10000) return;
       
-      M.Modal.getInstance(document.getElementById('modalConfirm')).open();
-      document.getElementById('popName').innerText = name;
+      lastScan = name; 
+      lastTime = Date.now();
+      
+      const subject = document.getElementById('subjectSelect').value;
+      const std = studentsData.find(s => s.name === name);
+      
+      if (!std) return;
+
+      // แสดงข้อมูลเบื้องต้นบน Modal
+      document.getElementById('popImg').src = std.photoUrl || 'https://via.placeholder.com/150';
+      document.getElementById('popName').innerText = std.name;
+      document.getElementById('popId').innerText = "รหัส: " + std.id + " | Class: " + (std.stdClass || "-");
       document.getElementById('popStatus').innerText = "กำลังบันทึก...";
+      
+      const modal = M.Modal.getInstance(document.getElementById('modalConfirm'));
+      modal.open();
 
-      const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ id: std.id, subject: sub }) });
-      document.getElementById('popStatus').innerText = await res.text();
-      updateLogs();
+      // ส่งข้อมูลไปที่ GAS
+      try {
+        const response = await fetch(GAS_URL, { 
+          method: "POST", 
+          body: JSON.stringify({ name: name, id: std.id, subject: subject }) 
+        });
+        const resultText = await response.text();
+        
+        // อัปเดตสถานะบน Modal จากที่ Server ตอบกลับมา
+        document.getElementById('popStatus').innerText = resultText;
+        
+        // เปลี่ยนหัวข้อ Modal ถ้าบันทึกซ้ำ
+        if (resultText.includes("ไปแล้ว")) {
+          document.getElementById('resTitle').innerText = "บันทึกไปแล้ว";
+          document.getElementById('resTitle').className = "orange-text";
+        } else {
+          document.getElementById('resTitle').innerText = "เช็คชื่อสำเร็จ";
+          document.getElementById('resTitle').className = "green-text";
+        }
+
+        // เสียงพูด
+        const speechMsg = (resultText.includes("ไปแล้ว")) 
+          ? `คุณ ${name} บันทึกข้อมูลวันนี้แล้วครับ` 
+          : `คุณ ${name} บันทึกเวลาเรียนสำเร็จครับ`;
+          
+        const talk = new SpeechSynthesisUtterance(speechMsg);
+        talk.lang = 'th-TH';
+        window.speechSynthesis.speak(talk);
+
+      } catch (e) {
+        document.getElementById('popStatus').innerText = "เชื่อมต่อล้มเหลว";
+      }
+
+      // ปิด Modal อัตโนมัติใน 4 วินาที
+      setTimeout(() => modal.close(), 4000);
     }
 
-    async function updateLogs() {
-      const res = await fetch(GAS_URL + "?action=getLogs");
-      const logs = await res.json();
-      let html = "";
-      logs.forEach(l => {
-        html += `<tr>
-          <td>${l.timestamp}</td>
-          <td>${l.name}</td>
-          <td>${l.subject}</td>
-          <td><button class="btn-small red" onclick="deleteRecord(${l.row})">ลบ</button></td>
-        </tr>`;
-      });
-      document.getElementById('log-body').innerHTML = html;
-    }
-
-    async function deleteRecord(row) {
-      if (!confirm("ต้องการลบข้อมูลนี้ใช่หรือไม่?")) return;
-      await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "deleteAttendance", row: row }) });
-      updateLogs();
-    }
+    window.onload = init;
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 </body>
