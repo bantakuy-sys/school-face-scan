@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบเช็คชื่อสแกนใบหน้า</title>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    body { background: #f4f7f6; font-family: 'Kanit', sans-serif; }
+    #login-page { display: flex; height: 100vh; align-items: center; justify-content: center; }
+    #main-page { display: none; padding: 20px; }
+    #video-wrap { position: relative; border: 5px solid #fff; border-radius: 15px; overflow: hidden; background: #000; width: 100%; max-width: 640px; margin: auto; }
+    canvas { position: absolute; top: 0; left: 0; }
+    .cam-controls { margin: 10px 0; }
+    .log-table { margin-top: 20px; background: white; border-radius: 10px; }
+  </style>
+</head>
+<body>
+
+  <div id="login-page">
+    <div class="card-panel center" style="width: 350px;">
+      <h5>เข้าสู่ระบบ (Teacher/Staff)</h5>
+      <div class="input-field"><input type="text" id="user" placeholder="Username"></div>
+      <div class="input-field"><input type="password" id="pass" placeholder="Password"></div>
+      <button class="btn green darken-2" onclick="login()" style="width: 100%;">Login</button>
+    </div>
+  </div>
+
+  <div id="main-page">
+    <div class="row">
+      <div class="col s12 m6">
+        <div id="video-wrap">
+          <video id="video" width="640" height="480" autoplay muted playsinline></video>
+        </div>
+        <div class="center-align cam-controls">
+          <button class="btn blue" onclick="toggleCamera()"><i class="material-icons left">videocam</i> เปิด/ปิด</button>
+          <button class="btn orange" onclick="switchCamera()"><i class="material-icons left">cameraswitch</i> สลับกล้อง</button>
+        </div>
+      </div>
+
+      <div class="col s12 m6">
+        <div class="card-panel">
+          <span id="user-info"></span> | <a href="#" onclick="logout()" class="red-text">ออกจากระบบ</a>
+          <h6>วิชาที่สอน:</h6>
+          <select id="subjectSelect" class="browser-default">
+            <option value="มาเรียน">มาเรียนปกติ</option>
+            <option value="ภาษาไทย">ภาษาไทย</option>
+            <option value="คณิตศาสตร์">คณิตศาสตร์</option>
+            </select>
+          <p id="status" class="orange-text">เตรียมระบบ AI...</p>
+        </div>
+
+        <div class="log-table">
+          <table class="centered striped">
+            <thead><tr><th>เวลา</th><th>ชื่อ</th><th>วิชา</th><th>จัดการ</th></tr></thead>
+            <tbody id="log-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalConfirm" class="modal">
+    <div class="modal-content center">
+      <h4 id="resTitle">สำเร็จ</h4>
+      <img id="popImg" style="width:100px; border-radius:50%;">
+      <h5 id="popName"></h5>
+      <p id="popStatus"></p>
+    </div>
+    <div class="modal-footer"><a href="#!" class="modal-close btn green">ตกลง</a></div>
+  </div>
+
+  <script>
+    const GAS_URL = "URL_WEB_APP_ของคุณ";
+    let currentStream = null, useFacingMode = "user", video = document.getElementById('video');
+    let faceMatcher, studentsData = [], lastScan = "", lastTime = 0;
+
+    // --- ระบบ Login ---
+    async function login() {
+      const u = document.getElementById('user').value;
+      const p = document.getElementById('pass').value;
+      const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "login", username: u, password: p }) });
+      const data = await res.json();
+      if (data.status === "success") {
+        sessionStorage.setItem("user", JSON.stringify(data));
+        document.getElementById('login-page').style.display = 'none';
+        document.getElementById('main-page').style.display = 'block';
+        document.getElementById('user-info').innerText = data.name + " (" + data.role + ")";
+        init();
+      } else { alert("Login ไม่ถูกต้อง"); }
+    }
+
+    function logout() { sessionStorage.clear(); location.reload(); }
+
+    // --- กล้อง ---
+    async function startVideo() {
+      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: useFacingMode } });
+        video.srcObject = currentStream;
+      } catch (e) { alert("เปิดกล้องไม่ได้"); }
+    }
+
+    function toggleCamera() {
+      if (video.paused) video.play(); else video.pause();
+    }
+
+    function switchCamera() {
+      useFacingMode = (useFacingMode === "user") ? "environment" : "user";
+      startVideo();
+    }
+
+    // --- ระบบสแกน ---
+    async function init() {
+      const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
+      await Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+      ]);
+      const res = await fetch(GAS_URL);
+      studentsData = await res.json();
+      const labeled = studentsData.map(s => {
+        if(!s.descriptor) return null;
+        return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(Object.values(s.descriptor))]);
+      }).filter(x => x);
+      faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
+      M.Modal.init(document.querySelectorAll('.modal'));
+      startVideo();
+      updateLogs();
+      setInterval(scan, 1000);
+    }
+
+    async function scan() {
+      if (video.paused || !faceMatcher) return;
+      const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
+      if (detects.length > 0) {
+        detects.forEach(d => {
+          const result = faceMatcher.findBestMatch(d.descriptor);
+          if (result.label !== 'unknown') handleMatch(result.label);
+        });
+      }
+    }
+
+    async function handleMatch(name) {
+      if (name === lastScan && Date.now() - lastTime < 8000) return;
+      lastScan = name; lastTime = Date.now();
+      const std = studentsData.find(s => s.name === name);
+      const sub = document.getElementById('subjectSelect').value;
+      
+      M.Modal.getInstance(document.getElementById('modalConfirm')).open();
+      document.getElementById('popName').innerText = name;
+      document.getElementById('popStatus').innerText = "กำลังบันทึก...";
+
+      const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ id: std.id, subject: sub }) });
+      document.getElementById('popStatus').innerText = await res.text();
+      updateLogs();
+    }
+
+    async function updateLogs() {
+      const res = await fetch(GAS_URL + "?action=getLogs");
+      const logs = await res.json();
+      let html = "";
+      logs.forEach(l => {
+        html += `<tr>
+          <td>${l.timestamp}</td>
+          <td>${l.name}</td>
+          <td>${l.subject}</td>
+          <td><button class="btn-small red" onclick="deleteRecord(${l.row})">ลบ</button></td>
+        </tr>`;
+      });
+      document.getElementById('log-body').innerHTML = html;
+    }
+
+    async function deleteRecord(row) {
+      if (!confirm("ต้องการลบข้อมูลนี้ใช่หรือไม่?")) return;
+      await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "deleteAttendance", row: row }) });
+      updateLogs();
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+</body>
+</html>
