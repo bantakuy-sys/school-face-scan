@@ -113,25 +113,53 @@
     }
 
     // --- ระบบสแกน ---
-    async function init() {
-      const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
-      await Promise.all([
-        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-      ]);
-      const res = await fetch(GAS_URL);
-      studentsData = await res.json();
-      const labeled = studentsData.map(s => {
-        if(!s.descriptor) return null;
-        return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(Object.values(s.descriptor))]);
-      }).filter(x => x);
-      faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
-      M.Modal.init(document.querySelectorAll('.modal'));
-      startVideo();
-      updateLogs();
-      setInterval(scan, 1000);
+   async function init() {
+  const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
+  try {
+    // 1. โหลด AI Model
+    await Promise.all([
+      faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]);
+    
+    // 2. ดึงข้อมูลรายวิชาจากแผ่นงาน 'subject'
+    status.innerText = "กำลังโหลดข้อมูลรายวิชา...";
+    const resSub = await fetch(GAS_URL + "?action=getSubjects");
+    const subjects = await resSub.json();
+    const subjectSelect = document.getElementById('subjectSelect');
+    
+    // วนลูปนำรายวิชาที่ได้มาเพิ่มเข้าใน Dropdown
+    subjects.forEach(sub => {
+      const opt = document.createElement('option');
+      opt.value = sub;
+      opt.innerText = sub;
+      subjectSelect.appendChild(opt);
+    });
+    
+    // 3. ดึงข้อมูลนักเรียน
+    status.innerText = "กำลังเชื่อมต่อฐานข้อมูล...";
+    const res = await fetch(GAS_URL);
+    studentsData = await res.json();
+    
+    if (studentsData.length === 0) {
+      status.innerText = "ไม่พบข้อมูลนักเรียน กรุณาลงทะเบียนก่อน";
+      return;
     }
+
+    const labeled = studentsData.map(s => {
+      if(!s.descriptor) return null;
+      return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(Object.values(s.descriptor))]);
+    }).filter(x => x);
+
+    faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
+    M.Modal.init(document.querySelectorAll('.modal'));
+    startVideo();
+    updateLogs();
+  } catch (err) {
+    status.innerText = "เกิดข้อผิดพลาดในการโหลดระบบ: " + err.message;
+  }
+}
 
     async function scan() {
       if (video.paused || !faceMatcher) return;
