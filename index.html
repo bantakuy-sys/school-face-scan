@@ -11,11 +11,31 @@
     body { display: flex; flex-direction: column; align-items: center; background: #f4f7f6; padding-top: 20px; font-family: 'Kanit', sans-serif; }
     #login-page { display: flex; height: 80vh; align-items: center; justify-content: center; }
     #main-page { display: none; width: 95%; max-width: 1200px; }
-    #video-wrap { position: relative; border: 8px solid #fff; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); overflow: hidden; background: #000; width: 640px; height: 480px; margin: auto; }
-    canvas { position: absolute; top: 0; left: 0; }
-    .container-card { padding: 20px; border-radius: 15px; }
-    .log-table { margin-top: 20px; background: white; border-radius: 10px; padding: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-    .cam-controls { margin: 15px 0; }
+/* ค้นหาและเปลี่ยน #video-wrap กับวิดีโอให้เป็นแบบนี้ */
+#video-wrap { 
+  position: relative; 
+  border: 8px solid #fff; 
+  border-radius: 20px; 
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2); 
+  overflow: hidden; 
+  background: #000; 
+  width: 100%;          /* เปลี่ยนจาก 640px เป็น 100% เพื่อให้หดตามจอ */
+  max-width: 640px;     /* คุมขนาดไม่ให้ใหญ่เกินขนาดกล้องจริง */
+  margin: auto; 
+  aspect-ratio: 4 / 3;  /* บังคับสัดส่วนกล้อง 4:3 อัตโนมัติ */
+}
+
+#video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;    /* ให้ภาพวิดีโอแนบสนิทพอดีกรอบ */
+}
+
+canvas { 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+}
   </style>
 </head>
 <body>
@@ -155,46 +175,50 @@
         });
         video.srcObject = currentStream;
         
-        // ผูกสคริปต์สแกนใบหน้าเข้ากับ Event ตอนกล้องเริ่มเล่นภาพ (ย้ายระบบลูปมาไว้ที่นี่เพื่อให้ Canvas ทำงานถูกต้อง)
-        video.onplaying = () => {
-          status.innerText = "ระบบพร้อมสแกนใบหน้า";
-          status.className = "green-text";
-          
-          // ลบ Canvas เก่าทิ้งถ้ามีการสลับกล้อง
-          const oldCanvas = document.querySelector('canvas');
-          if (oldCanvas) oldCanvas.remove();
+// ค้นหาฟังก์ชัน startVideo() เดิม แล้วปรับปรุงช่วง video.onplaying เป็นแบบนี้ครับ:
 
-          const canvas = faceapi.createCanvasFromMedia(video);
-          document.getElementById('video-wrap').append(canvas);
-          const size = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
-          faceapi.matchDimensions(canvas, size);
+video.onplaying = () => {
+  status.innerText = "ระบบพร้อมสแกนใบหน้า";
+  status.className = "green-text";
+  
+  // ลบ Canvas เก่าทิ้งถ้ามีการสลับกล้อง
+  const oldCanvas = document.querySelector('canvas');
+  if (oldCanvas) oldCanvas.remove();
 
-          if (scanInterval) clearInterval(scanInterval);
-          
-          // ลูปจับใบหน้าและวาดกรอบสี่เหลี่ยม ทุกๆ 1 วินาที
-          scanInterval = setInterval(async () => {
-            if (video.paused || !faceMatcher) return;
-            
-            const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
-            const resized = faceapi.resizeResults(detects, size);
-            
-            // เคลียร์ภาพวาดกรอบเก่าออกก่อน
-            canvas.getContext('2d').clearRect(0, 0, size.width, size.height);
-            
-            resized.forEach(d => {
-              const result = faceMatcher.findBestMatch(d.descriptor);
-              const label = result.label === 'unknown' ? 'ไม่รู้จัก' : result.label;
-              const color = result.label === 'unknown' ? 'red' : '#2e7d32';
-              
-              // วาดกรอบบนหน้าจอเหมือนโค้ดเดิมของคุณ
-              new faceapi.draw.DrawBox(d.detection.box, { label: label, boxColor: color }).draw(canvas);
-              
-              if (result.label !== 'unknown') {
-                handleMatch(result.label);
-              }
-            });
-          }, 1000);
-        };
+  const canvas = faceapi.createCanvasFromMedia(video);
+  document.getElementById('video-wrap').append(canvas);
+  
+  // เปลี่ยนตรงนี้: ใช้ความกว้างและสูงที่แสดงผลจริงบนจอปัจจุบัน
+  const size = { width: video.offsetWidth, height: video.offsetHeight };
+  faceapi.matchDimensions(canvas, size);
+
+  if (scanInterval) clearInterval(scanInterval);
+  
+  scanInterval = setInterval(async () => {
+    if (video.paused || !faceMatcher) return;
+    
+    const detects = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
+    
+    // ดึงขนาดหน้าจอ ณ วินาทีนั้นๆ (เผื่อผู้ใช้งานย่อขยายบราวเซอร์)
+    const currentSize = { width: video.offsetWidth, height: video.offsetHeight };
+    const resized = faceapi.resizeResults(detects, currentSize);
+    
+    // เคลียร์และวาดกรอบให้ตรงพิกัดจริง
+    canvas.getContext('2d').clearRect(0, 0, currentSize.width, currentSize.height);
+    
+    resized.forEach(d => {
+      const result = faceMatcher.findBestMatch(d.descriptor);
+      const label = result.label === 'unknown' ? 'ไม่รู้จัก' : result.label;
+      const color = result.label === 'unknown' ? 'red' : '#2e7d32';
+      
+      new faceapi.draw.DrawBox(d.detection.box, { label: label, boxColor: color }).draw(canvas);
+      
+      if (result.label !== 'unknown') {
+        handleMatch(result.label);
+      }
+    });
+  }, 1000);
+};
 
       } catch (e) { 
         status.innerText = "ไม่สามารถเข้าถึงกล้องได้: " + e.message;
