@@ -70,7 +70,15 @@
           </div>
           <a href="#" onclick="logout()" class="red-text right" style="margin-top:5px; font-weight:bold;">ออกจากระบบ</a>
            
-          <h6 style="margin-top: 20px; font-weight: bold;">เลือกรายวิชาเรียน:</h6>
+          <!-- เพิ่มส่วนการเลือกชั้นเรียนเพื่อจำกัดขอบเขตใบหน้า -->
+          <h6 style="margin-top: 20px; font-weight: bold; color: #1565c0;">1. ตัวกรองชั้นเรียน (ลดการสแกนผิดคน):</h6>
+          <div class="input-field">
+            <select id="classSelect" class="browser-default" onchange="updateFaceMatcher()" style="border-radius: 8px; border: 1px solid #1565c0; padding: 10px; width: 100%; font-weight: bold; background-color: #e3f2fd;">
+              <option value="">-- ทุกชั้นเรียน (ไม่ระบุชั้นสแกนรวมทั้งหมด) --</option>
+            </select>
+          </div>
+
+          <h6 style="margin-top: 15px; font-weight: bold;">2. เลือกรายวิชาเรียน:</h6>
           <div class="input-field">
             <select id="subjectSelect" class="browser-default" style="border-radius: 8px; border: 1px solid #2e7d32; padding: 10px; width: 100%;">
               <option value="มาเรียน">-- บันทึก 'มาเรียน' ปกติ (ไม่มีวิชา) --</option>
@@ -83,13 +91,13 @@
         </div>
 
         <div class="log-table">
-          <h6 class="center-align" style="font-weight: bold; color: #2e7d32;">ประวัติการสแกนล่าสุด ( 5 รายการ)</h6>
+          <h6 class="center-align" style="font-weight: bold; color: #2e7d32;">ประวัติการสแกนล่าสุด (10 รายการ)</h6>
           <table class="centered striped responsive-table">
             <thead>
               <tr>
                 <th>เวลา</th>
                 <th>ชื่อ-สกุล</th>
-                <th>รหัสประจำตัว</th>
+                <th>วิชา</th>
                 <th>จัดการ</th>
               </tr>
             </thead>
@@ -116,23 +124,19 @@
   </div>
 
   <script>
-    // แทนที่ด้วย URL Web App ของคุณที่ Deploy ล่าสุด
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzHuiQ58Ey981YVRMMOjgekvA6JpdjRGhjSz6RbBIHyjlUZXV5IQkK3w0LOUiXsz5v7/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwbdFWoRcBrzQjl5bwL8BpARhvou3_1jH-MLju5pKG8l67ojNXHksLvKTRYCcX9IfmN/exec";
     
     const video = document.getElementById('video');
     const status = document.getElementById('status');
     let currentStream = null, useFacingMode = "user";
     let faceMatcher, studentsData = [], lastScan = "", lastTime = 0, scanInterval = null;
-    
-    // [จุดแก้ไข] ตัวแปรโกลบอลสำหรับจำชื่อผู้ใช้งานของเครื่องนี้
     let currentUsername = "";
 
-    // ตรวจสอบ Session เก่าเมื่อโหลดหน้าเว็บ
     window.onload = () => {
       const savedUser = sessionStorage.getItem("user");
       if (savedUser) {
         const data = JSON.parse(savedUser);
-        currentUsername = data.username || ""; // ดึงชื่อผู้ใช้มาเก็บไว้ในระบบ
+        currentUsername = data.username || "";
         document.getElementById('login-page').style.display = 'none';
         document.getElementById('main-page').style.display = 'block';
         document.getElementById('user-info').innerText = `${data.name} (${data.role})`;
@@ -140,7 +144,6 @@
       }
     };
 
-    // --- 1. ระบบ Login ---
     async function login() {
       const u = document.getElementById('user').value.trim();
       const p = document.getElementById('pass').value.trim();
@@ -150,12 +153,9 @@
         const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "login", username: u, password: p }) });
         const data = await res.json();
         if (data.status === "success") {
-          // ประกันความปลอดภัยหากหลังบ้านไม่ได้ส่งโครงสร้าง username กลับมา ให้เอาตัวแปรฝั่งหน้าบ้านใส่แทน
           if (!data.username) data.username = u;
-          
           sessionStorage.setItem("user", JSON.stringify(data));
-          currentUsername = data.username; // บันทึกชื่อผู้ใช้ลงในระบบของหน้าจอปัจจุบัน
-          
+          currentUsername = data.username;
           document.getElementById('login-page').style.display = 'none';
           document.getElementById('main-page').style.display = 'block';
           document.getElementById('user-info').innerText = `${data.name} (${data.role})`;
@@ -173,7 +173,6 @@
       location.reload(); 
     }
 
-    // --- 2. ควบคุมและเปิดกล้อง ---
     async function startVideo() {
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
@@ -185,8 +184,8 @@
         video.srcObject = currentStream;
         
         video.onplaying = () => {
-          status.innerText = "ระบบพร้อมสแกนใบหน้า";
-          status.className = "green-text";
+          // เรียกใช้งานฟังก์ชันฟิลเตอร์เพื่อตั้งค่าสถานะตัวกรองเริ่มต้นให้ถูกต้อง
+          updateFaceMatcher();
           
           const oldCanvas = document.querySelector('canvas');
           if (oldCanvas) oldCanvas.remove();
@@ -237,7 +236,6 @@
       startVideo();
     }
 
-    // --- 3. โหลดโครงสร้างและฐานข้อมูล ---
     async function init() {
       const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights/';
       try {
@@ -252,7 +250,6 @@
         const subjects = await resSub.json();
         const subjectSelect = document.getElementById('subjectSelect');
         
-        // ล้างตัวเลือกเก่ายกเว้นตัวแรกสุด
         while (subjectSelect.options.length > 1) {
           subjectSelect.remove(1);
         }
@@ -268,15 +265,22 @@
         const res = await fetch(GAS_URL);
         studentsData = await res.json();
 
-        const labeled = studentsData.map(s => {
-          if(!s.descriptor) return null;
-          const desc = Array.isArray(s.descriptor) ? s.descriptor : Object.values(s.descriptor);
-          return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(desc)]);
-        }).filter(x => x);
-
-        faceMatcher = new faceapi.FaceMatcher(labeled, 0.6);
-        M.Modal.init(document.querySelectorAll('.modal'));
+        // --- [เพิ่มระบบอัตโนมัติ] สกัดกลุ่มชั้นเรียนที่ไม่ซ้ำจากคอลัมน์ stdClass ของชีต Students ---
+        const classSelect = document.getElementById('classSelect');
+        while (classSelect.options.length > 1) {
+          classSelect.remove(1);
+        }
         
+        // กรองค่าว่างและจัดเรียงชั้นเรียนจากน้อยไปมาก
+        const uniqueClasses = [...new Set(studentsData.map(s => s.stdClass).filter(c => c !== null && c !== ""))].sort();
+        uniqueClasses.forEach(cls => {
+          const opt = document.createElement('option');
+          opt.value = cls.toString().trim();
+          opt.innerText = "ชั้น " + cls;
+          classSelect.appendChild(opt);
+        });
+
+        M.Modal.init(document.querySelectorAll('.modal'));
         startVideo();
         updateLogs();
       } catch (err) {
@@ -285,9 +289,48 @@
       }
     }
 
-    // --- 4. บันทึกผลเมื่อใบหน้าตรงกับฐานข้อมูล ---
+    // --- [เพิ่มฟังก์ชันหลัก] ระบบสร้างฐานข้อมูลใบหน้าเฉพาะชั้นเรียนที่ถูกเลือก ---
+    function updateFaceMatcher() {
+      if (studentsData.length === 0) return;
+      
+      const selectedClass = document.getElementById('classSelect').value.trim();
+      
+      // เงื่อนไข: ถ้าเลือกเฉพาะชั้น ให้กรองเอาเฉพาะข้อมูลชั้นนั้นออกมา แต่ถ้าว่างให้ใช้ข้อมูลนักเรียนทั้งหมด
+      const filteredStudents = selectedClass 
+        ? studentsData.filter(s => s.stdClass && s.stdClass.toString().trim() === selectedClass)
+        : studentsData;
+
+      if (filteredStudents.length === 0) {
+        status.innerText = "⚠️ ไม่พบข้อมูลนักเรียนในชั้นที่ระบุ";
+        status.className = "orange-text";
+        faceMatcher = null;
+        return;
+      }
+
+      // นำข้อมูลที่ผ่านการกรองมาเตรียมสร้างโครงสร้างจุดใบหน้า (Labeled descriptors)
+      const labeled = filteredStudents.map(s => {
+        if(!s.descriptor) return null;
+        const desc = Array.isArray(s.descriptor) ? s.descriptor : Object.values(s.descriptor);
+        return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(desc)]);
+      }).filter(x => x);
+
+      if (labeled.length === 0) {
+        status.innerText = "⚠️ ไม่มีประวัติการบันทึกจุดใบหน้าในกลุ่มนี้";
+        status.className = "orange-text";
+        faceMatcher = null;
+        return;
+      }
+
+      // บรรจุข้อมูลกลุ่มจำกัดลงโมเดลตรวจสอบใบหน้า
+      faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
+      
+      // แสดงรายงานจำนวนที่คัดกรองได้ให้ผู้ใช้มั่นใจ
+      status.innerText = `ระบบพร้อมใช้งาน [สแกน: ${selectedClass ? 'ชั้น ' + selectedClass : 'ทุกชั้น'}] (เปิดจับคู่ฐานข้อมูลทั้งหมด ${filteredStudents.length} คน)`;
+      status.className = "green-text";
+    }
+
     async function handleMatch(name) {
-      if (name === lastScan && Date.now() - lastTime < 5000) return; 
+      if (name === lastScan && Date.now() - lastTime < 8000) return; 
       lastScan = name; 
       lastTime = Date.now();
       
@@ -305,7 +348,6 @@
       modal.open();
 
       try {
-        // [จุดแก้ไขหลัก] ส่ง username ของครูผู้ใช้พ่วงไปด้วยเพื่อให้บันทึกลง URL_ID ถูกต้อง
         const response = await fetch(GAS_URL, { 
           method: "POST", 
           body: JSON.stringify({ 
@@ -339,10 +381,8 @@
       setTimeout(() => modal.close(), 3500);
     }
 
-    // --- 5. ดึงตารางประวัติเช็คชื่อล่าสุด ---
     async function updateLogs() {
       try {
-        // [จุดแก้ไข] ส่ง username พ่วงไปด้วยตอนขอประวัติบันทึก จะได้ดึงเฉพาะตารางของครูคนนั้นๆ มาโชว์
         const res = await fetch(GAS_URL + "?action=getLogs&username=" + encodeURIComponent(currentUsername));
         const logs = await res.json();
         let html = "";
@@ -365,13 +405,11 @@
       }
     }
 
-    // --- 6. ฟังก์ชันลบข้อมูลแถวล่าสุดออกจาก Google Sheet ---
     async function deleteRecord(rowId) {
       if (!confirm("คุณแน่ใจใช่หรือไม่ว่าต้องการลบแถวบันทึกนี้? (กรณีสแกนพลาด)")) return;
       
       status.innerText = "กำลังทำการลบแถวข้อมูล...";
       try {
-        // [จุดแก้ไข] ส่ง username ไปด้วยในขั้นตอนลบข้อมูลหลังบ้าน จะได้ลบในชีตห้องของครูถูกคน
         const res = await fetch(GAS_URL, { 
           method: 'POST', 
           body: JSON.stringify({ 
@@ -383,7 +421,7 @@
         const msg = await res.text();
         alert(msg);
         updateLogs();
-        status.innerText = "ระบบพร้อมสแกนใบหน้า";
+        updateFaceMatcher(); // คืนค่าสถานะหลังจากประมวลผลเสร็จ
       } catch(e) {
         alert("ไม่สามารถลบแถวข้อมูลได้");
       }
