@@ -83,7 +83,7 @@
         </div>
 
         <div class="log-table">
-          <h6 class="center-align" style="font-weight: bold; color: #2e7d32;">ประวัติการสแกนล่าสุด (10 รายการ)</h6>
+          <h6 class="center-align" style="font-weight: bold; color: #2e7d32;">ประวัติการสแกนล่าสุด ( 5 รายการ)</h6>
           <table class="centered striped responsive-table">
             <thead>
               <tr>
@@ -274,7 +274,7 @@
           return new faceapi.LabeledFaceDescriptors(s.name, [new Float32Array(desc)]);
         }).filter(x => x);
 
-        faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
+        faceMatcher = new faceapi.FaceMatcher(labeled, 0.6);
         M.Modal.init(document.querySelectorAll('.modal'));
         
         startVideo();
@@ -287,7 +287,7 @@
 
     // --- 4. บันทึกผลเมื่อใบหน้าตรงกับฐานข้อมูล ---
     async function handleMatch(name) {
-      if (name === lastScan && Date.now() - lastTime < 8000) return; 
+      if (name === lastScan && Date.now() - lastTime < 5000) return; 
       lastScan = name; 
       lastTime = Date.now();
       
