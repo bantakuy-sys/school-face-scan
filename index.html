@@ -368,10 +368,10 @@
           document.getElementById('resTitle').className = "green-text";
         }
 
-        const speechMsg = resultText.includes("ไปแล้ว") ? `คุณ ${name} เช็คชื่อวิชานี้ไปแล้วค่ะ` : `คุณ ${name} เช็คชื่อสำเร็จค่ะ`;
-        const talk = new SpeechSynthesisUtterance(speechMsg);
-        talk.lang = 'th-TH';
-        window.speechSynthesis.speak(talk);
+       // const speechMsg = resultText.includes("ไปแล้ว") ? ` ${name} เช็คชื่อวิชานี้ไปแล้วครับ` : `คุณ ${name} เช็คชื่อสำเร็จค่ะ`;
+     //   const talk = new SpeechSynthesisUtterance(speechMsg);
+     //   talk.lang = 'th-TH';
+     //   window.speechSynthesis.speak(talk);
 
         updateLogs(); 
       } catch (e) {
