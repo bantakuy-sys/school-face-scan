@@ -322,7 +322,7 @@
       }
 
       // บรรจุข้อมูลกลุ่มจำกัดลงโมเดลตรวจสอบใบหน้า
-      faceMatcher = new faceapi.FaceMatcher(labeled, 0.7);
+      faceMatcher = new faceapi.FaceMatcher(labeled, 0.6);
       
       // แสดงรายงานจำนวนที่คัดกรองได้ให้ผู้ใช้มั่นใจ
       status.innerText = `ระบบพร้อมใช้งาน [สแกน: ${selectedClass ? 'ชั้น ' + selectedClass : 'ทุกชั้น'}] (เปิดจับคู่ฐานข้อมูลทั้งหมด ${filteredStudents.length} คน)`;
@@ -378,7 +378,7 @@
         document.getElementById('popStatus').innerText = "ล้มเหลว: ไม่สามารถส่งข้อมูลหาคลาวด์ได้";
       }
       
-      setTimeout(() => modal.close(), 5000);
+      setTimeout(() => modal.close(), 4000);
     }
 
     async function updateLogs() {
