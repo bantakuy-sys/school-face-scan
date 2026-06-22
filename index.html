@@ -322,7 +322,7 @@
       }
 
       // บรรจุข้อมูลกลุ่มจำกัดลงโมเดลตรวจสอบใบหน้า
-      faceMatcher = new faceapi.FaceMatcher(labeled, 0.5);
+      faceMatcher = new faceapi.FaceMatcher(labeled, 0.7);
       
       // แสดงรายงานจำนวนที่คัดกรองได้ให้ผู้ใช้มั่นใจ
       status.innerText = `ระบบพร้อมใช้งาน [สแกน: ${selectedClass ? 'ชั้น ' + selectedClass : 'ทุกชั้น'}] (เปิดจับคู่ฐานข้อมูลทั้งหมด ${filteredStudents.length} คน)`;
@@ -361,7 +361,7 @@
         document.getElementById('popStatus').innerText = resultText;
         
         if (resultText.includes("ไปแล้ว")) {
-          document.getElementById('resTitle').innerText = "บันทึกซ้ำ";
+          document.getElementById('resTitle').innerText = "บันทึกชื่อนี้ไปแล้ว";
           document.getElementById('resTitle').className = "orange-text";
         } else {
           document.getElementById('resTitle').innerText = "เช็คชื่อสำเร็จ";
@@ -378,7 +378,7 @@
         document.getElementById('popStatus').innerText = "ล้มเหลว: ไม่สามารถส่งข้อมูลหาคลาวด์ได้";
       }
       
-      setTimeout(() => modal.close(), 3500);
+      setTimeout(() => modal.close(), 5000);
     }
 
     async function updateLogs() {
